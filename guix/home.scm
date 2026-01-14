@@ -6,6 +6,7 @@
  (gnu home services shells)
  (gnu home services shepherd)
  (gnu home services ssh)
+ (gnu packages ssh)
  (gnu packages base)
  (gnu packages bash)
  (gnu packages wget)
@@ -30,7 +31,7 @@
  (packages claude-code))
 
 (define main-packages (list less
-							ripgrep 
+                            ripgrep
                             git
                             emacs-no-x 
                             glibc-locales
@@ -44,6 +45,7 @@
                             claude-code
                             doom
                             omz
+                            openssh
                             node))
 (define dev-packages (if (getenv "TEST") 
                          (list bash 
