@@ -8,7 +8,7 @@
 (define-public omz
   (package
    (name "oh-my-zsh")
-   (version "master")
+   (version "35068db8373917a23eb9e3dabeb6596348e6534c")
    (source (origin
             (method git-fetch)
             (uri (git-reference
@@ -17,7 +17,7 @@
             (file-name (git-file-name name version))
             (sha256
              (base32
-              "19h1ayp1n85yyya75haxybdx8h0z1hsf8w6xcb7xsnmz64891vvj"))))
+              "0lmja67byssqxvgd6qs1fibpqw1b03lpdjikwnihaphx3277dllz"))))
    (build-system copy-build-system)
    (arguments
     '(#:install-plan

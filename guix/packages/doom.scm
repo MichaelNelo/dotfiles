@@ -8,7 +8,7 @@
 (define-public doom
   (package
    (name "doom-emacs")
-   (version "master")
+   (version "3e15fb36d7f94f0a218bda977be4d3f5da983a71")
    (source (origin
             (method git-fetch)
             (uri (git-reference
@@ -17,7 +17,7 @@
             (file-name (git-file-name name version))
             (sha256
              (base32
-              "0qziki7idb6pv24y3xw512symkdpir1nmri89ikpc9y9iklxncpz"))))
+              "0fd5vma846cjby87ysm33fdkfnnp73xnyj931x0xq554zpvfvgs0"))))
    (build-system copy-build-system)
    (arguments
     '(#:install-plan
