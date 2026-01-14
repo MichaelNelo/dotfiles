@@ -3,6 +3,7 @@
  (gnu home)
  (gnu home services)
  (gnu home services dotfiles)
+ (gnu home services guix)
  (gnu home services shells)
  (gnu home services shepherd)
  (gnu home services ssh)
@@ -25,6 +26,7 @@
  (gnu packages elf)
  (gnu packages compression)
  (guix packages)
+ (guix channels)
  (srfi srfi-1)
  (packages omz)
  (packages doom)
@@ -109,25 +111,31 @@
                                     (doom-local (string-append (getenv "HOME") "/.config/emacs/.local"))
                                     (ca-path (if (getenv "TEST") (string-append #$nss-certs "/etc/ssl/certs/") "/etc/ssl/certs")))              
                                 (unless (file-exists? doom-local)
-                                        (copy-recursively doom-path doom-dir)
-                                        (setenv "PATH" (string-append git-path 
-                                                                      ":" 
-                                                                      emacs-path 
-                                                                      ":" 
-                                                                      sh-path 
-                                                                      ":" 
-                                                                      (getenv "PATH")))
-                                        (setenv "EMACSDIR" (string-append (getenv "HOME") "/.config/emacs"))
-                                        (setenv "DOOMDIR" (string-append (getenv "HOME") "/.config/doom"))                                
-                                        (setenv "GIT_SSL_CAPATH" ca-path)
-                                        (setenv "SSL_CERT_DIR" ca-path)
-                                        (system* #$(file-append bash "/bin/sh")
-                                                 (string-append doom-dir "/bin/doom")
-                                                 "install"
-                                                 "--verbose")
-                                        (system* #$(file-append bash "/bin/sh")
-                                                 (string-append doom-dir "/bin/doom")
-                                                 "sync"))))
+                                  (copy-recursively doom-path doom-dir)
+                                  (setenv "PATH" (string-append git-path 
+                                                                ":" 
+                                                                emacs-path 
+                                                                ":" 
+                                                                sh-path 
+                                                                ":" 
+                                                                (getenv "PATH")))
+                                  (setenv "EMACSDIR" (string-append (getenv "HOME") "/.config/emacs"))
+                                  (setenv "DOOMDIR" (string-append (getenv "HOME") "/.config/doom"))                                
+                                  (setenv "GIT_SSL_CAPATH" ca-path)
+                                  (setenv "SSL_CERT_DIR" ca-path)
+                                  (system* #$(file-append bash "/bin/sh")
+                                           (string-append doom-dir "/bin/doom")
+                                           "install"
+                                           "--verbose")
+                                  (system* #$(file-append bash "/bin/sh")
+                                           (string-append doom-dir "/bin/doom")
+                                           "sync"))))
+            ;; Channels configuration
+            (simple-service 'my-channels-service-type
+                            home-channels-service-type (cons* (channel
+                                                                (name 'rustup)
+                                                                (url "https://github.com/declantsien/guix-rustup.git"))
+                                                               %default-channels))
             ;; Shell configuration
             (service home-zsh-service-type (home-zsh-configuration
                                             (zprofile  (append (make-zsh-snippet-for
