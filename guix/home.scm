@@ -24,6 +24,7 @@
  (gnu packages rust-apps)
  (gnu packages less)
  (gnu packages elf)
+ (gnu packages disk)
  (gnu packages compression)
  (guix packages)
  (guix channels)
@@ -33,6 +34,7 @@
  (packages claude-code))
 
 (define main-packages (list less
+                            ranger
                             ripgrep
                             git
                             emacs-no-x 
@@ -48,6 +50,7 @@
                             doom
                             omz
                             openssh
+                            dropbear
                             node))
 (define dev-packages (if (getenv "TEST") 
                          (list bash 
@@ -100,6 +103,57 @@
                                            (host-name "github.com")
                                            (user "michael@flush.com")
                                            (identity-file "~/.ssh/flush.github.id_ed25519"))))))
+            (simple-service 'ssh-host-keys-setup
+                home-activation-service-type
+                #~(let ((key-file (string-append (getenv "HOME") 
+                                                "/.ssh/dropbear_rsa_host_key"))
+                        (dropbearkey #$(file-append dropbear "/bin/dropbearkey")))
+                    (unless (file-exists? key-file)
+                      (format #t "Generating ssh server key...~%")
+                      (invoke dropbearkey "-t" "rsa" "-f" key-file))))
+            (simple-service 'ssh-client-keys-setup
+                home-activation-service-type
+                #~(begin
+                    (use-modules (ice-9 textual-ports))
+                    (let* ((key-file (string-append (getenv "HOME") "/.ssh/id_dropbear"))
+                        (authorized-keys (string-append (getenv "HOME") "/.ssh/authorized_keys"))
+                        (ssh-keygen #$(file-append openssh "/bin/ssh-keygen"))
+                        (pubkey-file (string-append key-file ".pub")))
+                    (mkdir-p (string-append (getenv "HOME") "/.ssh"))
+                    (unless (file-exists? key-file)
+                      (format #t "Generating client ssh key...~%")
+                      (invoke ssh-keygen 
+                              "-t" "rsa"
+                              "-b" "4096"
+                              "-f" key-file
+                              "-N" ""
+                              "-C" "guix-home-generated"))
+                    (let ((pubkey-contents (call-with-input-file pubkey-file (lambda (port) (get-string-all port))))
+                          (current-keys (if (file-exists? authorized-keys) (call-with-input-file authorized-keys (lambda (port) (get-string-all port))) "")))
+                      (unless (string-contains current-keys "guix-home-generated")
+                        (format #t "Adding client key to authorized_keys")
+                        (call-with-output-file authorized-keys
+                                               (lambda (port)
+                                                 (display current-keys port)
+                                                 (display pubkey-contents port)
+                                                 (newline port)))
+                        (chmod authorized-keys #o600))))))
+            (simple-service 'dopbear-ssh-server
+                            home-shepherd-service-type
+                            (list (shepherd-service
+                                   (provision '(ssh-server))
+                                   (documentation "SSH server")
+                                   (start #~(make-forkexec-constructor
+                                             (list #$(file-append dropbear "/sbin/dropbear")
+                                                   "-F"
+                                                   "-E"
+                                                   "-p" "2222"
+                                                   "-r" (string-append (getenv "HOME") 
+                                                                       "/.ssh/dropbear_rsa_host_key")
+                                                   "-s"
+                                                   "-w"))) 
+                                   (stop #~(make-kill-destructor SIGKILL))
+                                   (respawn? #f))))
             ;; Doom emacs configuration
             (simple-service 'doom-emacs-installation
                             home-activation-service-type
@@ -133,9 +187,9 @@
             ;; Channels configuration
             (simple-service 'my-channels-service-type
                             home-channels-service-type (cons* (channel
-                                                                (name 'rustup)
-                                                                (url "https://github.com/declantsien/guix-rustup.git"))
-                                                               %default-channels))
+                                                               (name 'rustup)
+                                                               (url "https://github.com/declantsien/guix-rustup.git"))
+                                                              %default-channels))
             ;; Shell configuration
             (service home-zsh-service-type (home-zsh-configuration
                                             (zprofile  (append (make-zsh-snippet-for
