@@ -28,9 +28,7 @@
  (guix packages)
  (guix channels)
  (srfi srfi-1)
- (packages omz)
- (packages doom)
- (packages claude-code))
+ (packages omz))
 
 (define main-packages (list less
                             ripgrep
@@ -44,10 +42,8 @@
                             direnv
                             zoxide
                             patchelf
-                            claude-code
-                            doom
-                            omz
                             openssh
+                            omz
                             node))
 (define dev-packages (if (getenv "TEST") 
                          (list bash 
