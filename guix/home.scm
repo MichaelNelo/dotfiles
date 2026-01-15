@@ -104,40 +104,44 @@
                                            (user "michael@flush.com")
                                            (identity-file "~/.ssh/flush.github.id_ed25519"))))))
             (simple-service 'ssh-host-keys-setup
-                home-activation-service-type
-                #~(let ((key-file (string-append (getenv "HOME") 
-                                                "/.ssh/dropbear_rsa_host_key"))
-                        (dropbearkey #$(file-append dropbear "/bin/dropbearkey")))
-                    (unless (file-exists? key-file)
-                      (format #t "Generating ssh server key...~%")
-                      (invoke dropbearkey "-t" "rsa" "-f" key-file))))
+                            home-activation-service-type
+                            #~(let ((key-file (string-append (getenv "HOME") 
+                                                             "/.ssh/dropbear_rsa_host_key"))
+                                    (dropbearkey #$(file-append dropbear "/bin/dropbearkey")))
+                                (unless (file-exists? key-file)
+                                  (format #t "Generating ssh server key...~%")
+                                  (invoke dropbearkey "-t" "rsa" "-f" key-file))))
             (simple-service 'ssh-client-keys-setup
-                home-activation-service-type
-                #~(begin
-                    (use-modules (ice-9 textual-ports))
-                    (let* ((key-file (string-append (getenv "HOME") "/.ssh/id_dropbear"))
-                        (authorized-keys (string-append (getenv "HOME") "/.ssh/authorized_keys"))
-                        (ssh-keygen #$(file-append openssh "/bin/ssh-keygen"))
-                        (pubkey-file (string-append key-file ".pub")))
-                    (mkdir-p (string-append (getenv "HOME") "/.ssh"))
-                    (unless (file-exists? key-file)
-                      (format #t "Generating client ssh key...~%")
-                      (invoke ssh-keygen 
-                              "-t" "rsa"
-                              "-b" "4096"
-                              "-f" key-file
-                              "-N" ""
-                              "-C" "guix-home-generated"))
-                    (let ((pubkey-contents (call-with-input-file pubkey-file (lambda (port) (get-string-all port))))
-                          (current-keys (if (file-exists? authorized-keys) (call-with-input-file authorized-keys (lambda (port) (get-string-all port))) "")))
-                      (unless (string-contains current-keys "guix-home-generated")
-                        (format #t "Adding client key to authorized_keys")
-                        (call-with-output-file authorized-keys
-                                               (lambda (port)
-                                                 (display current-keys port)
-                                                 (display pubkey-contents port)
-                                                 (newline port)))
-                        (chmod authorized-keys #o600))))))
+                            home-activation-service-type
+                            #~(begin
+                                (use-modules (ice-9 textual-ports))
+                                (let* ((key-file (string-append (getenv "HOME") "/.ssh/id_dropbear"))
+                                       (authorized-keys (string-append (getenv "HOME") "/.ssh/authorized_keys"))
+                                       (ssh-keygen #$(file-append openssh "/bin/ssh-keygen"))
+                                       (pubkey-file (string-append key-file ".pub"))
+                                       (zsh-shell #$(file-append zsh "/bin/zsh")))
+                                  (mkdir-p (string-append (getenv "HOME") "/.ssh"))
+                                  (unless (file-exists? key-file)
+                                    (format #t "Generating client ssh key...~%")
+                                    (invoke ssh-keygen 
+                                            "-t" "rsa"
+                                            "-b" "4096"
+                                            "-f" key-file
+                                            "-N" ""
+                                            "-C" "guix-home-generated"))
+                                  (let ((pubkey-contents (call-with-input-file pubkey-file (lambda (port) (get-string-all port))))
+                                        (current-keys (if (file-exists? authorized-keys) (call-with-input-file authorized-keys (lambda (port) (get-string-all port))) "")))
+                                    (unless (string-contains current-keys "guix-home-generated")
+                                      (format #t "Adding client key to authorized_keys")
+                                      (call-with-output-file authorized-keys
+                                        (lambda (port)
+                                          (display current-keys port)
+                                          (display (string-append
+                                                    "command=\"" zsh-shell "-il\" "
+                                                    (string-trim-right pubkey-contents))
+                                                   port)
+                                          (newline port)))
+                                      (chmod authorized-keys #o600))))))
             (simple-service 'dopbear-ssh-server
                             home-shepherd-service-type
                             (list (shepherd-service
