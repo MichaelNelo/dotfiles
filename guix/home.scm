@@ -57,96 +57,23 @@
                                libiconv) 
                          '()))
 
-(define (make-zsh-snippet-for npkg file-name snippet)
-  (let ((has-package? (any
-                       (lambda (pkg) (string=? (package-name pkg) (package-name npkg)))
-                       main-packages)))
-    (if has-package?
-        (list (plain-file file-name
-                          snippet))
-        '())))
-
 (home-environment
  (packages (append main-packages dev-packages))
  (services (list
             ;; Dotfiles configuration
             (service home-dotfiles-service-type (home-dotfiles-configuration
                                                  (directories '("../../dotfiles"))))
-            ;; Shepherd services
-            (simple-service 'emacs-daemon
-                            home-shepherd-service-type
-                            (list (shepherd-service
-                                   (provision '(emacs-daemon))
-                                   (documentation "Personal Emacs daemon")
-                                   (start #~(make-forkexec-constructor
-                                             (list #$(file-append emacs-no-x "/bin/emacs")
-                                                   "--fg-daemon=personal")
-                                             #:environment-variables
-                                             (let ((home (getenv "HOME")))
-                                               (append (environ)
-                                                       (list (string-append "DOOMDIR=" home "/.config/doom")
-                                                             (string-append "EMACSDIR=" home "/.config/emacs"))))))
-                                   (stop #~(make-kill-destructor SIGKILL))
-                                   (respawn? #f))))
             ;; SSH configuration
             (service home-openssh-service-type
                      (home-openssh-configuration
                       (hosts
-                       (list (openssh-host (name "me.github.com")
-                                           (host-name "github.com")
-                                           (user "michaelnelo66@outlook.com")
-                                           (identity-file "~/.ssh/personal.github.id_ed25519"))
-                             (openssh-host (name "flush.github.com")
-                                           (host-name "github.com")
-                                           (user "michael@flush.com")
-                                           (identity-file "~/.ssh/flush.github.id_ed25519"))))))
-            ;; Doom emacs configuration
-            (simple-service 'doom-emacs-installation
-                            home-activation-service-type
-                            #~(let ((doom-path (string-append #$doom "/share/doom-emacs"))
-                                    (emacs-path (string-append #$emacs-no-x "/bin/"))
-                                    (git-path (string-append #$git "/bin/"))
-                                    (sh-path (string-append #$bash "/bin/"))
-                                    (doom-dir (string-append (getenv "HOME") "/.config/emacs"))
-                                    (doom-local (string-append (getenv "HOME") "/.config/emacs/.local"))
-                                    (ca-path (if (getenv "TEST") (string-append #$nss-certs "/etc/ssl/certs/") "/etc/ssl/certs")))              
-                                (unless (file-exists? doom-local)
-                                  (copy-recursively doom-path doom-dir)
-                                  (setenv "PATH" (string-append git-path 
-                                                                ":" 
-                                                                emacs-path 
-                                                                ":" 
-                                                                sh-path 
-                                                                ":" 
-                                                                (getenv "PATH")))
-                                  (setenv "EMACSDIR" (string-append (getenv "HOME") "/.config/emacs"))
-                                  (setenv "DOOMDIR" (string-append (getenv "HOME") "/.config/doom"))                                
-                                  (setenv "GIT_SSL_CAPATH" ca-path)
-                                  (setenv "SSL_CERT_DIR" ca-path)
-                                  (system* #$(file-append bash "/bin/sh")
-                                           (string-append doom-dir "/bin/doom")
-                                           "install"
-                                           "--verbose")
-                                  (system* #$(file-append bash "/bin/sh")
-                                           (string-append doom-dir "/bin/doom")
-                                           "sync"))))
-            ;; Channels configuration
-            (simple-service 'my-channels-service-type
-                            home-channels-service-type (cons* (channel
-                                                                (name 'rustup)
-                                                                (url "https://github.com/declantsien/guix-rustup.git"))
-                                                               %default-channels))
+                       (list (openssh-host (name "local.zo.eva")
+                             			   (host-name "192.168.1.2")
+                             			   (user "mknelo")
+                             			   (identity-file "~/.ssh/eva.personal.id_dropbear"))))))
             ;; Shell configuration
             (service home-zsh-service-type (home-zsh-configuration
-                                            (zprofile  (append (make-zsh-snippet-for
-                                                                zoxide
-                                                                "init-zoxide.zsh"
-                                                                "eval \"$(zoxide init zsh)\"")
-                                                               (make-zsh-snippet-for
-                                                                direnv
-                                                                "init-direnv.zsh"
-                                                                "eval \"$(direnv hook zsh)\"")
-                                                               (list (plain-file "make-npm-global-prefix.zsh"
+                                            (zprofile  (append (list (plain-file "make-npm-global-prefix.zsh"
                                                                                  "
 if [[ ! -d \"$HOME/.npm-global\" ]] then
     mkdir \"$HOME/.npm-global\"
