@@ -14,7 +14,7 @@
  (gnu packages nss)
  (gnu packages version-control)
  (gnu packages shells)
- (gnu packages base)
+ (gnu packages pkg-config)
  (gnu packages emacs)
  (gnu packages node)
  (gnu packages terminals)
@@ -26,6 +26,10 @@
  (gnu packages elf)
  (gnu packages disk)
  (gnu packages compression)
+ (gnu packages commencement)
+ (gnu packages cmake)
+ (gnu packages curl)
+ (gnu packages autotools)
  (guix packages)
  (guix channels)
  (srfi srfi-1)
@@ -38,6 +42,7 @@
                             ripgrep
                             git
                             emacs-no-x 
+                            pkg-config
                             glibc-locales
                             fzf 
                             fzf-tab 
@@ -46,10 +51,16 @@
                             direnv
                             zoxide
                             patchelf
+                            cmake
+                            gcc-toolchain
+                            glibc
                             claude-code
                             doom
                             omz
+                            gnu-make
+                            curl
                             openssh
+                            libtool
                             dropbear
                             node))
 (define dev-packages (if (getenv "TEST") 
@@ -75,6 +86,18 @@
             ;; Dotfiles configuration
             (service home-dotfiles-service-type (home-dotfiles-configuration
                                                  (directories '("../../dotfiles"))))
+            (simple-service 'gcc-to-cc-symlink
+                            home-activation-service-type
+                            #~(begin
+                                (use-modules (guix build utils))
+                                
+                                (let ((bin-dir (string-append (getenv "HOME") "/.local/bin"))
+                                      (gcc-bin #$(file-append gcc-toolchain "/bin/gcc")))
+                                  (let ((cc-link (string-append bin-dir "/cc")))
+                                    (mkdir-p bin-dir)
+                                    (when (file-exists? cc-link)
+                                      (delete-file cc-link))
+                                    (symlink gcc-bin cc-link)))))
             ;; Shepherd services
             (simple-service 'emacs-daemon
                             home-shepherd-service-type
@@ -137,7 +160,7 @@
                                         (lambda (port)
                                           (display current-keys port)
                                           (display (string-append
-                                                    "command=\"" zsh-shell "-il\" "
+                                                    "command=\"" zsh-shell " -i -l\" "
                                                     (string-trim-right pubkey-contents))
                                                    port)
                                           (newline port)))
@@ -215,6 +238,7 @@ npm config set prefix $HOME/.npm-global
                                             (environment-variables `(("ZSH"            .  ,(file-append omz "/share/oh-my-zsh"))
                                                                      ("SHELL"          .  ,(file-append zsh "/bin/zsh"))
                                                                      ("GUIX_LOCPATH"   .  "$HOME/.guix-home/profile/lib/locale")
+                                                                     ("CC"             .  ,(file-append gcc-toolchain "/bin/gcc"))
                                                                      ("GIT_SSL_CAPATH" .  "/etc/ssl/certs")
                                                                      ("SSL_CERT_DIR"   .  "/etc/ssl/certs")
-                                                                     ("PATH"           .  "$HOME/.npm-global/bin:$PATH"))))))))
+                                                                     ("PATH"           .  "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"))))))))
