@@ -11,7 +11,8 @@
 
 ;; Default environment variables for ZSH
 (define %zsh-environment-variables
-  `(("ZSH"            . ,(file-append omz "/share/oh-my-zsh"))
+  `(("ZDOTDIR"        . "$HOME/.config/zsh")
+    ("ZSH"            . ,(file-append omz "/share/oh-my-zsh"))
     ("SHELL"          . ,(file-append zsh "/bin/zsh"))
     ("GUIX_LOCPATH"   . "$HOME/.guix-home/profile/lib/locale")
     ("GIT_SSL_CAPATH" . "/etc/ssl/certs")
