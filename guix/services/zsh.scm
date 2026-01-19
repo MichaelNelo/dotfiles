@@ -28,6 +28,14 @@ if [[ ! -d \"$HOME/.npm-global\" ]]; then
 fi
 
 npm config set prefix $HOME/.npm-global
+")
+        (plain-file "direnv-init.zsh"
+                    "
+eval \"$(direnv hook zsh)\"
+")
+        (plain-file "zoxide-init.zsh"
+                    "
+eval \"$(zoxide init zsh)\"
 ")))
 
 ;; Default ZSH service
