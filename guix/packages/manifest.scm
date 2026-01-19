@@ -37,6 +37,7 @@
         zoxide
         patchelf
         openssh
+        ncurses  ;; provides clear, tput, etc.
         node))
 
 ;; Additional packages for development/testing environments
@@ -44,5 +45,4 @@
   (list bash
         wget
         nss-certs
-        ncurses
         libiconv))
