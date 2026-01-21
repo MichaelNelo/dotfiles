@@ -16,6 +16,7 @@
   #:use-module (gnu packages less)
   #:use-module (gnu packages elf)
   #:use-module (gnu packages compression)
+  #:use-module (gnu packages containers)
   #:use-module (packages omz)
   #:use-module (packages claude-code)
   #:export (%base-packages
@@ -40,6 +41,8 @@
         openssh
         ncurses  ;; provides clear, tput, etc.
         node
+        podman
+        crun
         claude-code))
 
 ;; Additional packages for development/testing environments
