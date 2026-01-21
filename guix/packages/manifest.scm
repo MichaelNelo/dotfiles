@@ -17,6 +17,7 @@
   #:use-module (gnu packages elf)
   #:use-module (gnu packages compression)
   #:use-module (packages omz)
+  #:use-module (packages claude-code)
   #:export (%base-packages
             %dev-packages))
 
@@ -38,7 +39,8 @@
         patchelf
         openssh
         ncurses  ;; provides clear, tput, etc.
-        node))
+        node
+        claude-code))
 
 ;; Additional packages for development/testing environments
 (define %dev-packages
