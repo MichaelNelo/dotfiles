@@ -5,6 +5,7 @@
   #:use-module (guix gexp)
   #:use-module (packages omz)
   #:export (%zsh-environment-variables
+            %zsh-zshenv
             %zsh-zprofile
             %zsh-service
             make-zsh-service))
@@ -38,18 +39,28 @@ eval \"$(direnv hook zsh)\"
 eval \"$(zoxide init zsh)\"
 ")))
 
+;; Zshenv content to fix glob errors in /etc/profile
+(define %zsh-zshenv
+  (list (plain-file "fix-glob-nomatch.zsh"
+                    "# Prevent errors when globs don't match (e.g., /etc/profile.d/*.sh)
+setopt NULL_GLOB
+")))
+
 ;; Default ZSH service
 (define %zsh-service
   (service home-zsh-service-type
            (home-zsh-configuration
+            (zshenv %zsh-zshenv)
             (zprofile %zsh-zprofile)
             (environment-variables %zsh-environment-variables))))
 
 ;; Factory function to create ZSH service with custom configuration
 (define* (make-zsh-service #:key
                            (environment-variables %zsh-environment-variables)
+                           (zshenv %zsh-zshenv)
                            (zprofile %zsh-zprofile))
   (service home-zsh-service-type
            (home-zsh-configuration
+            (zshenv zshenv)
             (zprofile zprofile)
             (environment-variables environment-variables))))
