@@ -19,6 +19,8 @@
   #:use-module (gnu packages containers)
   #:use-module (packages omz)
   #:use-module (packages claude-code)
+  #:use-module (packages micro-plugins lsp)
+  #:use-module (packages micro-plugins autofmt)
   #:export (%base-packages
             %dev-packages))
 
@@ -42,6 +44,8 @@
         ncurses  ;; provides clear, tput, etc.
         node
         podman
+        micro-plugin-lsp
+        micro-plugin-autofmt
         crun
         claude-code))
 
