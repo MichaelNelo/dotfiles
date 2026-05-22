@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json",
+  "enabled": true,
+  "pruneNotification": "detailed",
+  "compress": {
+    "mode": "range",
+    "permission": "allow",
+    "summaryBuffer": true,
+    // Umbral alto agresivo: ~45% de tu ventana de 128K en vez de 100K.
+    // Por encima de esto DCP empuja compresi¢n fuerte y frecuente.
+    "maxContextLimit": 60000,
+    // Umbral bajo: por debajo, sin recordatorios. Arriba, empieza a nudgear.
+    "minContextLimit": 30000,
+    // Nudge en cada fetch (1) en vez de cada 5: m xima presi¢n de compresi¢n.
+    "nudgeFrequency": 1,
+    // Empezar a recordar compresi¢n antes (8 mensajes vs 15 default).
+    "iterationNudgeThreshold": 8,
+    // "strong" = mucho m s probable que comprima tras tus mensajes.
+    "nudgeForce": "strong"
+  },
+  "strategies": {
+    "deduplication": { "enabled": true },
+    "purgeErrors": { "enabled": true, "turns": 2 }
+  }
+}

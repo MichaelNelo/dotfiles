@@ -1,0 +1,66 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["/home/mknelo/.config/opencode/AGENTS.md"],
+  "plugin": ["@tarquinen/opencode-dcp@3.1.12"],
+  "permission": {
+    "*": "ask",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "question": "allow",
+    "todowrite": "allow",
+    "skill": "allow"
+  },
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "gemma4-e4b-128k": {
+          "name": "Gemma 4 E4B (128K ctx)",
+          "limit": { "context": 131072, "output": 8192 },
+          "options": { "stream": false }
+        },
+        "llama3.1-8b-48k": {
+          "name": "Llama 3.1 8B (48K ctx)",
+          "limit": { "context": 49152, "output": 8192 },
+          "options": { "stream": false }
+        },
+        "qwen3-4b-80k": {
+          "name": "Qwen3 4B (80K ctx)",
+          "limit": { "context": 81920, "output": 8192 },
+          "options": { "stream": false }
+        }
+      }
+    },
+    "llama-server": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "llama.cpp server (local)",
+      "options": {
+        "baseURL": "http://localhost:8080/v1"
+      },
+      "models": {
+        "128k": {
+          "name": "llama-server loaded model (128K ctx)",
+          "limit": { "context": 131072, "output": 8192 },
+          "options": { "stream": false }
+        },
+        "64k": {
+          "name": "llama-server loaded model (64K ctx)",
+          "limit": { "context": 65536, "output": 8192 },
+          "options": { "stream": false }
+        },
+        "32k": {
+          "name": "llama-server loaded model (32K ctx)",
+          "limit": { "context": 32768, "output": 8192 },
+          "options": { "stream": false }
+        }
+      }
+    }
+  }
+}
