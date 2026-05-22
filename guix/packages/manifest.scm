@@ -3,6 +3,7 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages wget)
+  #:use-module (gnu packages curl)
   #:use-module (gnu packages nss)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages shells)
@@ -16,11 +17,14 @@
   #:use-module (gnu packages less)
   #:use-module (gnu packages elf)
   #:use-module (gnu packages compression)
+  #:use-module (gnu packages commencement)
   #:use-module (gnu packages containers)
   #:use-module (packages omz)
+  #:use-module (packages fzfcolored)
   #:use-module (packages claude-code)
   #:use-module (packages micro-plugins lsp)
   #:use-module (packages micro-plugins autofmt)
+  #:use-module (packages micro-plugins fzf)
   #:export (%base-packages
             %dev-packages))
 
@@ -41,11 +45,14 @@
         zoxide
         patchelf
         openssh
+        curl
         ncurses  ;; provides clear, tput, etc.
         node
         podman
+        fzfcolored
         micro-plugin-lsp
         micro-plugin-autofmt
+        micro-plugin-fzf
         crun
         claude-code))
 

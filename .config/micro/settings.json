@@ -1,0 +1,15 @@
+{
+	"options": {
+		"fzfcmd": "fzfcolored",
+		"fzfopen": "newtab",
+		"fzfpath": "relative",
+		"fzfarg": "--preview 'cat -f -p {}'",
+	},
+	"lsp.server": "d=serve-d",
+	"lsp.d": "{\"d.dcdServerPath\": \"/gnu/store/f6m1p7fzsvy8m1adsv6wz1006a0jbn5p-dcd-0.16.2/bin/dcd-server\", \"d.dcdClientPath\": \"/gnu/store/f6m1p7fzsvy8m1adsv6wz1006a0jbn5p-dcd-0.16.2/bin/dcd-client\"}",
+	"lsp.formatOnSave": true,
+	"lsp.ignoreMessages": "LS message1 to ignore|LS message 2 to ignore|...",
+	"lsp.tabcompletion": true,
+	"lsp.ignoreTriggerCharacters": "completion,signature",
+	"lsp.autocompleteDetails": false
+}
