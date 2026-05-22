@@ -9,22 +9,154 @@ tooling. Default shell is **zsh**. Working dir is the project passed to
 `opencode [project]`.
 
 The schemas below are extracted from `sst/opencode` (`packages/opencode/src/tool/*`).
-If a schema field is not documented here, **omit it** — do NOT invent params.
+If a schema field is not documented here, omit it — do not invent params.
 
 ---
 
 ## Tool-calling protocol
 
-- Use the **OpenAI tool-calling JSON format**: emit calls via `tool_calls` on an
-  assistant message with `function.name` and `function.arguments` (stringified
-  JSON object).
-- **Do NOT** emit XML-style calls (`<tool_call>`, `<function=...>`,
-  `<|tool▁call|>`). Other harnesses use those; opencode will not parse them.
-- `function.arguments` MUST be valid, complete JSON — close every brace and
-  bracket before emitting.
-- For optional params, **omit the key entirely**. Never send `"undefined"` or
-  `"null"` strings.
-- One tool call per turn unless the active provider supports parallel calls.
+1. Emit tool calls as OpenAI JSON: `tool_calls` array with `function.name`
+   and `function.arguments` (a stringified JSON object). Other formats won't
+   parse.
+2. Keep `function.arguments` valid, complete JSON — every brace and bracket
+   closed before emitting.
+3. For optional params, omit the key entirely.
+4. One tool call per turn unless the active provider supports parallel calls.
+
+---
+
+## Reasoning protocol
+
+Run this gate before any code action:
+
+1. List the knowledge the task needs: file structure, APIs, conventions,
+   runtime behavior, user intent.
+2. Split each item into KNOWN or UNKNOWN.
+3. If UNKNOWN is empty: act.
+4. If UNKNOWN is not empty: call `question` and ask the user whether they
+   have the info or want you to research it. One short question per item,
+   or one combined question if items are tied.
+5. If the user says "research":
+   - **Code that lives in a public repo** → use `webfetch` with the raw
+     URL scheme below. Clone to `/tmp` only if `webfetch` returns 404 or
+     rate-limit.
+   - **Concepts, APIs without a repo, prose docs** → use `websearch`.
+6. When KNOWN covers the decisive parts of the task: execute.
+
+### VCS URL schemes for `webfetch`
+
+| Host          | Tree (listing)                                              | Raw (content)                                              |
+| ------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
+| github.com    | `https://github.com/<o>/<r>/tree/<ref>/<path>`              | `https://raw.githubusercontent.com/<o>/<r>/<ref>/<path>`   |
+| gitlab.com    | `https://gitlab.com/<o>/<r>/-/tree/<ref>/<path>`            | `https://gitlab.com/<o>/<r>/-/raw/<ref>/<path>`            |
+| codeberg.org  | `https://codeberg.org/<o>/<r>/src/branch/<ref>/<path>`      | `https://codeberg.org/<o>/<r>/raw/branch/<ref>/<path>`     |
+| bitbucket.org | `https://bitbucket.org/<o>/<r>/src/<ref>/<path>`            | `https://bitbucket.org/<o>/<r>/raw/<ref>/<path>`           |
+| git.sr.ht     | `https://git.sr.ht/~<u>/<r>/tree/<ref>/item/<path>`         | `https://git.sr.ht/~<u>/<r>/blob/<ref>/<path>`             |
+
+Fallback clone (via `bash`):
+
+    git clone --depth 1 https://<host>/<owner>/<repo> /tmp/<repo>-$$
+
+Then `read`, `glob`, `grep` against `/tmp/<repo>-*`.
+
+### Worked example
+
+User: "Wire `framer-motion` v11 to my Next.js 15 layout."
+KNOWN: Next.js layout file conventions.
+UNKNOWN: framer-motion v11 API vs v10; user's current animation entry-point.
+→ `question`: "Where is your animation entry-point today, and should I
+fetch framer-motion v11 docs?"
+
+---
+
+## Interrupt protocol
+
+When the user injects a new task mid-execution of a plan or a multi-step
+instruction:
+
+1. Stop the current step at the next safe boundary. Finish or revert a
+   half-written edit before pausing.
+2. Snapshot intermediate knowledge so resuming doesn't restart from zero:
+   - If a `todowrite` list exists, set the current item's status to
+     `pending` (was `in_progress`) and append a one-line note with what
+     was already done.
+   - If facts you discovered during the interrupted task matter for
+     either task, `write` them to `/tmp/opencode-notes-<short-slug>.md`
+     and reference that path in the todo item's content.
+3. Insert the new task at the top of the todo list with status
+   `in_progress` and `priority=high`.
+4. Resolve the new task end-to-end before returning.
+5. After the new task is `completed`, flip the snapshot item back to
+   `in_progress` and continue from the noted point.
+
+---
+
+## Plan-mode protocol
+
+The `plan` agent has `edit` / `write` / `apply_patch` / `bash` set to
+`ask`, so you analyze and propose, but don't mutate state directly.
+
+1. Delegate broad search to `task` with `subagent_type=explore` instead of
+   reading many files in the main context. Explore returns one summary,
+   keeping context lean.
+2. Before reading source files, look for AI context docs at the repo root:
+   - `AGENTS.md`
+   - `.agents/*.md`
+   - `CLAUDE.md`
+   - `CONVENTIONS.md`
+   - `docs/architecture.md`
+   Treat whatever you find as authoritative for project conventions.
+3. End the plan-mode turn with a single markdown document with three
+   sections, in this order:
+
+       ## Patches
+       Unified-diff blocks, one per file. Full absolute path in each
+       header. No commentary inside blocks.
+
+       ## TODO
+       List ready to paste into `todowrite`. Each entry: short content,
+       status `pending`, priority `high|medium|low`.
+
+       ## Out of scope
+       Issues discovered during exploration that don't belong in this
+       change. One line per item; each is the seed of a future plan.
+
+---
+
+## Coding conventions
+
+1. **Verify after acting.** After `edit` / `write`, re-read or grep the
+   target to confirm the change landed as intended. When a runner exists
+   (`npm test`, `pytest -q`, `cargo check`, `make`), run it before
+   reporting the task done.
+2. **Pattern-match before introducing new code.** Before adding a new
+   helper, type, or pattern, `grep` or `glob` for existing utilities and
+   naming conventions in the project. Mirror what adjacent files already
+   do.
+3. **Source-of-truth ranking for library research.** When researching a
+   library or framework:
+   1. Installed code (`node_modules/<pkg>`, `<venv>/site-packages`, Guix
+      store paths).
+   2. The exact tagged source on the VCS (use the lockfile or manifest
+      to learn the installed version, then fetch that tag).
+   3. Official docs site.
+   4. Blog posts and Stack Overflow.
+
+   For version-specific questions, read `package.json` / `Cargo.toml` /
+   `pyproject.toml` / lockfile first to know which version applies.
+4. **No git mutations without ask.** Don't `commit`, `push`,
+   branch-rename, `push --force`, `reset --hard`, `rebase -i`, or delete
+   branches unless the user asked for that exact action. Read-only ops
+   (`git status`, `git diff`, `git log`, `git blame`) are always fine.
+5. **Cite with `file:line`.** When referring to code in a response, use
+   `path/to/file.ext:42` so the user can jump there in their editor or
+   terminal.
+6. **Label inferences.** Prefix claims you reasoned out (not observed)
+   with `INFERRED:`. Cite observed claims with `file:line` or a URL.
+7. **Reproduce before fixing.** For a bug report, reproduce the failure
+   first: run the failing command, isolate the smallest input that
+   triggers it. Don't propose a fix until you've seen the failure or
+   read the failing stack trace.
 
 ---
 
@@ -40,12 +172,12 @@ Read file contents.
 | `offset`   | non-negative int   | no       | —       | Line number to start from (1-indexed).                     |
 | `limit`    | non-negative int   | no       | 2000    | Max number of lines to read.                               |
 
-Use `offset`/`limit` for files > 2000 lines. For directories, `read` returns the
-listing — there is no separate `list` tool.
+Use `offset`/`limit` for files > 2000 lines. For directories, `read` returns
+the listing — there is no separate `list` tool.
 
 ### `edit`
 
-Surgical string replacement in an existing file. **Must `read` the file first.**
+Surgical string replacement in an existing file. Must `read` the file first.
 
 | Param        | Type    | Required | Default | Description                                                          |
 | ------------ | ------- | -------- | ------- | -------------------------------------------------------------------- |
@@ -66,8 +198,8 @@ Create a new file or fully overwrite one.
 | `filePath` | string | yes      | —       | Absolute path (must be absolute, not relative).                        |
 | `content`  | string | yes      | —       | File contents.                                                         |
 
-If the file exists, opencode requires you to `read` it first (in-context state
-check). Prefer `edit` for existing files.
+If the file exists, opencode requires you to `read` it first. Prefer `edit`
+for existing files.
 
 ### `apply_patch`
 
@@ -89,17 +221,18 @@ Run a shell command in zsh.
 | `workdir`     | string | no       | project dir | Override the working directory.                               |
 | `timeout`     | number | no       | 120000 (ms) | Execution timeout in milliseconds. Must be positive.          |
 
-Use dedicated tools (`read`/`edit`/`write`/`glob`/`grep`) instead of shelling
-out to `cat`/`sed`/`echo`/`find`/`rg` when a dedicated tool fits.
+Use dedicated tools (`read` / `edit` / `write` / `glob` / `grep`) instead of
+shelling out to `cat` / `sed` / `echo` / `find` / `rg` when a dedicated tool
+fits.
 
 ### `glob`
 
 Find files by pattern.
 
-| Param     | Type   | Required | Default     | Description                                                                                       |
-| --------- | ------ | -------- | ----------- | ------------------------------------------------------------------------------------------------- |
-| `pattern` | string | yes      | —           | Glob pattern (e.g. `src/**/*.ts`).                                                                |
-| `path`    | string | no       | project dir | Directory to search in. **Omit** for default — never send the literal string `"undefined"`/`"null"`. |
+| Param     | Type   | Required | Default     | Description                                                |
+| --------- | ------ | -------- | ----------- | ---------------------------------------------------------- |
+| `pattern` | string | yes      | —           | Glob pattern (e.g. `src/**/*.ts`).                         |
+| `path`    | string | no       | project dir | Directory to search in.                                    |
 
 Results are sorted by modification time (most recent first).
 
@@ -116,7 +249,7 @@ Regex content search; respects `.gitignore`.
 ### `task`
 
 Delegate to a subagent. Subagents run in an isolated context window and return
-a single message; they do **not** see this conversation.
+a single message; they do not see this conversation.
 
 | Param           | Type    | Required | Default | Description                                                                |
 | --------------- | ------- | -------- | ------- | -------------------------------------------------------------------------- |
@@ -133,7 +266,7 @@ unless you pass `task_id`.
 
 ### `todowrite`
 
-Maintain the visible task checklist. **Disabled for subagents by default.**
+Maintain the visible task checklist. Disabled for subagents by default.
 
 `todos` is an array of objects:
 
@@ -209,9 +342,8 @@ Confirmed via `opencode agent list` (this user, v1.15.0):
 ### Primary agents (user-facing, switchable with Tab / `switch_agent` keybind)
 
 - **`build`** *(default)* — full tool access. Use for actual coding.
-- **`plan`** — `edit`/`write`/`apply_patch`/`bash` set to `ask`. Use for
-  read-heavy analysis and producing implementation plans without touching the
-  tree.
+- **`plan`** — `edit` / `write` / `apply_patch` / `bash` set to `ask`. Use
+  for read-heavy analysis (see Plan-mode protocol).
 
 ### Subagents (invoke via the `task` tool)
 
@@ -221,36 +353,30 @@ Confirmed via `opencode agent list` (this user, v1.15.0):
 | `general`       | Full tool access except `todowrite`. Open-ended research or multi-step tasks.         |
 
 Multiple `task` calls in one turn run in parallel when the active provider
-supports parallel tool calls. **Subagents cannot recursively spawn subagents.**
+supports parallel tool calls. Subagents cannot recursively spawn subagents.
 
 ### System agents (not invokable directly)
 
 `compaction`, `summary`, `title` — opencode uses these internally for context
-compression and session naming. Do not invoke.
-
-### Scout
-
-Documented upstream as a read-only subagent for cloning dependency repos into
-opencode's managed cache. **Not registered on this system.** Treat as
-unavailable unless `opencode agent list` shows it.
+compression and session naming. Skip them.
 
 ---
 
 ## MCP servers
 
-`opencode mcp list` → **none configured**. Do not assume any MCP capability
-exists. Do not edit `opencode.json` to add MCPs without explicit user request —
-the user adds them via `opencode mcp add`.
+`opencode mcp list` → none configured. Treat MCP capabilities as
+unavailable. Only edit `opencode.json` to add MCPs when the user asks; they
+use `opencode mcp add` themselves.
 
 ---
 
 ## Plugins
 
 - **`@tarquinen/opencode-dcp@3.1.12`** (Dynamic Context Pruning). Config in
-  `~/.config/opencode/dcp.jsonc`. Aggressive: starts nudging at 30K tokens,
-  forces compression above 60K (window is 128K). **Implication:** older tool
-  results may be summarized or dropped. If a fact matters, re-read the source
-  — do not assume the transcript is verbatim.
+  `~/.config/opencode/dcp.jsonc`. Starts nudging at 30K tokens, forces
+  compression above 60K (window is 128K). Older tool results may be
+  summarized or dropped. When a fact matters, re-read the source instead
+  of trusting the transcript.
 
 ---
 
@@ -266,25 +392,21 @@ the user adds them via `opencode mcp add`.
 | `external_directory` (any other path)                                              | ask    |
 | `*` (everything else, includes `bash`, `write`, `edit`, `apply_patch`)             | ask    |
 
-**Implication:** every mutation prompts the user. Batch them: announce the
-plan in one short paragraph, then execute. Do not chain ten `edit` calls
-without a heads-up.
+Every mutation prompts the user. Batch them: announce the plan in one
+short paragraph, then execute. Avoid chaining ten `edit` calls without a
+heads-up.
 
 ---
 
 ## Providers and models
 
-Configured in `opencode.json`:
+Local providers via `ollama` and `llama-server`. Models are 4B–8B,
+Q4/Q5 quantized. See `opencode.json` for the current list.
 
-- **`ollama`** (local, `http://localhost:11434/v1`):
-  `gemma4-e4b-128k`, `llama3.1-8b-48k`, `qwen3-4b-80k`. Non-streaming.
-- **`llama-server`** (local, `http://localhost:8080/v1`): `128k`, `64k`, `32k`
-  — context labels for the currently-loaded GGUF. Non-streaming.
-
-When running a small model (4B–8B):
-- Use `read` with `offset`/`limit` for long files instead of full reads.
-- Delegate broad search to `explore` rather than reading many files in the
-  main context.
+When running a small model:
+- `read` with `offset` / `limit` for long files instead of full reads.
+- Delegate broad search to `explore` rather than reading many files in
+  the main context.
 - State the plan in plain text before tool calls so the user can correct
   cheaply.
 
@@ -292,22 +414,20 @@ When running a small model (4B–8B):
 
 ## Working style
 
-- **Read before edit.** Always `read` a file before `edit`/`apply_patch`/
-  `write`.
-- **Surgical edits.** Prefer `edit` over `write` for existing files. Don't
-  rewrite a 500-line file to change 3 lines.
-- **One concern per turn.** Don't refactor while fixing a bug unless asked.
-- **Concise output.** Terminal output. Lead with the result; no preamble, no
-  recap, no closing summary unless the task is non-trivial.
-- **No emoji** unless the user asks.
+- **Read before edit.** Always `read` a file before `edit` / `apply_patch`
+  / `write`.
+- **Surgical edits.** Prefer `edit` over `write` for existing files.
+- **One concern per turn.** Fix-only or refactor-only, not both.
+- **Concise output.** Lead with the result; skip preamble, recap, closing
+  summary unless the task is non-trivial.
+- **Plain ASCII text** unless the user asks for emoji or rich formatting.
 - **Respect Guix declarative state.** Packages live in `guix/packages/*.scm`;
-  the home env is `guix/home.scm`. Do **not** propose `apt install` or
-  `npm i -g` unless the user explicitly says the change is throwaway.
-- **State tradeoffs, then stop.** For exploratory questions, give a 2–3 sentence
-  recommendation with the main tradeoff; don't implement until the user
-  agrees.
-- **Verify destructive actions.** Confirm before `rm -rf`, `git push --force`,
-  migrations, or anything that touches state outside the working tree.
-
-When unsure, ask one specific question via `question` rather than guessing.
-Asking costs one turn; guessing wrong costs a full retry.
+  the home env is `guix/home.scm`. Use those for permanent installs.
+  Mention `apt install` / `npm i -g` only when the user says the change
+  is throwaway.
+- **Recommend, then stop.** For exploratory questions, give a 2–3 sentence
+  recommendation with the main tradeoff; wait for agreement before
+  implementing.
+- **Verify destructive actions.** Confirm before `rm -rf`, `git push
+  --force`, migrations, or anything that touches state outside the
+  working tree.
