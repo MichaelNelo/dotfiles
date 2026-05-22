@@ -10,6 +10,7 @@
 
 (define version
   "2.1.143")
+
 (define-public claude-code-linux-x64
   (origin
     (method url-fetch)
@@ -21,26 +22,27 @@
 (define-public claude-code
   (package
     (name "claude-code")
-    (version "2.0.76")
-    (source (origin
-              (method url-fetch)
-              (uri (string-append 
-                    "https://registry.npmjs.org/@anthropic-ai/claude-code/-/"
-                    "claude-code-" version ".tgz"))
-              (sha256
-               (base32
-                "1ndrj51yfgkp1xgph5r3v6n946rlamj3v0y6wk4114wfzwv9k8zw"))))
+    (version version)
     (build-system trivial-build-system)
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://registry.npmjs.org/@anthropic-ai/claude-code/-/"
+             "claude-code-" version ".tgz"))
+       (sha256
+        (base32 "0rji3ahx6dvfsc07281n32y44gm6bfwrazi753lcns3z3nkh7jn8"))))
+    (native-inputs (list node bash claude-code-linux-x64))
     (arguments
      (list
       #:modules '((guix build utils))
       #:builder
       #~(begin
           (use-modules (guix build utils))
-          
+
           (let* ((npm #$(file-append node "/bin/npm"))
                  (node-bin #$(file-append node "/bin/node"))
-                 (tarball #$source)
+                 (sh-bin #$(file-append bash "/bin/sh"))
                  (out #$output)
                  (bin-dir (string-append out "/bin"))
                  (lib-dir (string-append out "/lib")))
@@ -48,24 +50,41 @@
             (setenv "HOME" out)
             (setenv "NPM_CONFIG_PREFIX" out)
             (setenv "NPM_CONFIG_GLOBAL" "true")
-            (setenv "PATH" (string-append (dirname node-bin) ":" (getenv "PATH")))
-            
+            (setenv "PATH"
+                    (string-append (dirname node-bin) ":"
+                                   (dirname sh-bin) ":"
+                                   (getenv "PATH")))
+
             (mkdir-p bin-dir)
             (mkdir-p lib-dir)
-            
+
+            ;; Paso 1: Instalar el linux-x64 binary primero
+            ;; El postinstall extrae el tarball y copia el binary
             (invoke npm
                     "install"
                     "-g"
-                    tarball
-                    "--prefix" out
+                    #$claude-code-linux-x64
+                    "--prefix"
+                    out
                     "--loglevel=verbose"
                     "--offline"
                     "--no-audit"
                     "--no-fund")
-            
+
+            ;; Paso 2: Instalar el wrapper después
+            ;; El postinstall encuentra el linux-x64 binary ya instalado y lo vincula
+            (invoke npm
+                    "install"
+                    "-g"
+                    #$source
+                    "--prefix"
+                    out
+                    "--loglevel=verbose"
+                    "--offline"
+                    "--no-audit"
+                    "--no-fund")
+
             #t))))
-    (native-inputs
-     (list node))
     (home-page "https://code.claude.com")
     (synopsis "AI coding assistant from Anthropic")
     (description
