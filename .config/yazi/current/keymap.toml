@@ -1,0 +1,13 @@
+# yazi-current keymap. Bindings que spawnean comandos en floating panes de
+# zellij vía dotfiles/.config/zellij/scripts/yazi-float.sh.
+#
+# Tokens: %f (hovered), %F (selected), %d (cwd), %D (dirname de %f), %%.
+# El path absoluto del wrapper es necesario — yazi no expande ~ en `shell`.
+
+[mgr]
+prepend_keymap = [
+    { on = ["c", "f"], run = '''shell --orphan '/home/mknelo/dotfiles/.config/zellij/scripts/yazi-float.sh "file %f" "$0" "$@"' ''', desc = "file(1) on hovered (float)" },
+    { on = ["c", "d"], run = '''shell --orphan '/home/mknelo/dotfiles/.config/zellij/scripts/yazi-float.sh "du -sh %F" "$0" "$@"' ''', desc = "du -sh selection (float)" },
+    { on = ["c", "g"], run = '''shell --orphan '/home/mknelo/dotfiles/.config/zellij/scripts/yazi-float.sh "lazygit -p %d" "$0" "$@"' ''', desc = "lazygit on cwd (float)" },
+    { on = ["c", "c"], run = '''shell --orphan '/home/mknelo/dotfiles/.config/zellij/scripts/yazi-ask.sh "$0" "$@"' ''', desc = "Custom command (float, prompt)" },
+]

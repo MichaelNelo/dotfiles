@@ -1,0 +1,2 @@
+# yazi standalone (fuera del layout grs). Hereda defaults upstream.
+# Las configuraciones role-specific viven en current/ y preview/.

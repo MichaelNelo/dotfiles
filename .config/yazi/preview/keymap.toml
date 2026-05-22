@@ -1,0 +1,26 @@
+# yazi-preview: cursor lockeado. El movimiento lo dicta yazi-current vía DDS.
+# - j/k, arrows, gg/G, Page*, C-d/C-u, Enter → noop
+# - h/l, arrows horizontales → noop (no navega a parent/child)
+# - K (shift+k) y J (shift+j) → conservados (seek -5 / seek +5 = scroll del
+#   contenido del preview, sin tocar el cursor).
+
+[mgr]
+prepend_keymap = [
+    { on = "j",          run = "noop", desc = "(locked) cursor follows yazi-current" },
+    { on = "k",          run = "noop", desc = "(locked) cursor follows yazi-current" },
+    { on = "<Down>",     run = "noop", desc = "(locked)" },
+    { on = "<Up>",       run = "noop", desc = "(locked)" },
+    { on = "h",          run = "noop", desc = "(locked)" },
+    { on = "l",          run = "noop", desc = "(locked)" },
+    { on = "<Left>",     run = "noop", desc = "(locked)" },
+    { on = "<Right>",    run = "noop", desc = "(locked)" },
+    { on = "<Enter>",    run = "noop", desc = "(locked)" },
+    { on = "g",          run = "noop", desc = "(locked) blocks g-prefix sequences" },
+    { on = "G",          run = "noop", desc = "(locked)" },
+    { on = "<PageUp>",   run = "noop", desc = "(locked)" },
+    { on = "<PageDown>", run = "noop", desc = "(locked)" },
+    { on = "<C-u>",      run = "noop", desc = "(locked)" },
+    { on = "<C-d>",      run = "noop", desc = "(locked)" },
+    { on = "<C-b>",      run = "noop", desc = "(locked)" },
+    { on = "<C-f>",      run = "noop", desc = "(locked)" },
+]

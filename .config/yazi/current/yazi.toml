@@ -1,0 +1,9 @@
+# yazi-current (grs explore tab, top-left)
+# Sólo muestra la columna current. parent/preview ocultos.
+[mgr]
+ratio = [0, 8, 0]
+
+[opener]
+edit = [
+  { run = '''${EDITOR:-vi} "$@" -c 'cd %:p:h'; ya pub-to 1003 grs-reveal-from-1001 --str "$0" >/dev/null 2>&1; ${GRS_OPEN_HOOK:-true}''', desc = "edit (nvr)", block = false, for = "unix" },
+]

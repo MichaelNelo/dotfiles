@@ -1,0 +1,9 @@
+# yazi-neotree: sidebar mode en la tab edit. Misma columna única que
+# current/, mismo opener (delegado a $EDITOR=nvr).
+[mgr]
+ratio = [0, 8, 0]
+
+[opener]
+edit = [
+  { run = '''${EDITOR:-vi} "$@" -c 'cd %:p:h'; ${GRS_OPEN_HOOK:-true}''', desc = "edit (nvr)", block = false, for = "unix" },
+]

@@ -1,0 +1,13 @@
+# yazi-preview (grs explore tab, bottom-left)
+# Maximiza el panel de preview. Mantiene una columna fina con el archivo bajo
+# cursor porque yazi requiere current visible.
+[mgr]
+ratio = [0, 0, 8]
+
+[preview]
+wrap = "yes"
+
+[opener]
+edit = [
+  { run = ':', desc = "noop (preview)", block = false, for = "unix" },
+]
