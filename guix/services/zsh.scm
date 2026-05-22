@@ -18,7 +18,8 @@
     ("GUIX_LOCPATH"   . "$HOME/.guix-home/profile/lib/locale")
     ("GIT_SSL_CAPATH" . "/etc/ssl/certs")
     ("SSL_CERT_DIR"   . "/etc/ssl/certs")
-    ("PATH"           . "$HOME/.npm-global/bin:$PATH")))
+    ("LD_LIBRARY_PATH" . "$HOME/.guix-home/profile/lib")
+    ("PATH"           . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH")))
 
 ;; Default zprofile scripts
 (define %zsh-zprofile
