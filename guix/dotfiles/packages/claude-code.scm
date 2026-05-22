@@ -50,7 +50,7 @@
                  (out #$output)
                  (bin-dir (string-append out "/bin"))
                  (lib-dir (string-append out "/lib")))
-
+            
             (setenv "HOME" out)
             (setenv "NPM_CONFIG_PREFIX" out)
             (setenv "NPM_CONFIG_GLOBAL" "true")
@@ -88,7 +88,8 @@
 
             ;; Create a wrapper script that invokes the binary via Guix's ld-linux
             ;; (patchelf corrupts Bun binaries, so we use the dynamic linker directly)
-            (let ((claude-exe (string-append out "/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe"))
+            (let ((claude-exe (string-append out
+                               "/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe"))
                   (wrapper (string-append bin-dir "/claude")))
               ;; Remove the symlink npm created
               (when (file-exists? wrapper)
@@ -96,8 +97,12 @@
               ;; Write wrapper script
               (call-with-output-file wrapper
                 (lambda (port)
-                  (format port "#!~a~%exec ~a --library-path ~a ~a \"$@\"~%"
-                          sh-bin ld-linux (string-append glibc "/lib") claude-exe)))
+                  (format port
+                          "#!~a~%exec ~a --library-path ~a ~a \"$@\"~%"
+                          sh-bin
+                          ld-linux
+                          (string-append glibc "/lib")
+                          claude-exe)))
               (chmod wrapper #o755))
 
             #t))))

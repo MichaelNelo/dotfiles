@@ -25,8 +25,7 @@
   #:use-module (dotfiles packages micro-plugins lsp)
   #:use-module (dotfiles packages micro-plugins autofmt)
   #:use-module (dotfiles packages micro-plugins fzf)
-  #:export (%base-packages
-            %dev-packages))
+  #:export (%base-packages %dev-packages))
 
 ;; Core CLI packages for everyday use
 (define %base-packages
@@ -46,7 +45,7 @@
         patchelf
         openssh
         curl
-        ncurses  ;; provides clear, tput, etc.
+        ncurses ;provides clear, tput, etc.
         node
         podman
         fzfcolored
@@ -58,7 +57,4 @@
 
 ;; Additional packages for development/testing environments
 (define %dev-packages
-  (list bash
-        wget
-        nss-certs
-        libiconv))
+  (list bash wget nss-certs libiconv))

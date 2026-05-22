@@ -10,7 +10,8 @@
   (package
     (name "fzfcolored")
     (version "0.1.0")
-    (source #f)
+    (source
+     #f)
     (build-system trivial-build-system)
     (arguments
      (list
@@ -20,12 +21,15 @@
           (use-modules (guix build utils))
           (let* ((out (assoc-ref %outputs "out"))
                  (bin (string-append out "/bin"))
-                 (fd  (string-append (assoc-ref %build-inputs "fd") "/bin/fd"))
-                 (fzf (string-append (assoc-ref %build-inputs "fzf") "/bin/fzf")))
+                 (fd (string-append (assoc-ref %build-inputs "fd") "/bin/fd"))
+                 (fzf (string-append (assoc-ref %build-inputs "fzf")
+                                     "/bin/fzf")))
             (mkdir-p bin)
             (call-with-output-file (string-append bin "/fzfcolored")
               (lambda (port)
-                (format port "#!/bin/sh~%exec ~a . -t f -c always | ~a --ansi \"$@\"~%" fd fzf)))
+                (format port
+                 "#!/bin/sh~%exec ~a . -t f -c always | ~a --ansi \"$@\"~%" fd
+                 fzf)))
             (chmod (string-append bin "/fzfcolored") #o755)))))
     (inputs (list fd fzf))
     (synopsis "Colored fzf wrapper using fd")

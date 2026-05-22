@@ -4,22 +4,20 @@
   #:use-module (gnu packages shells)
   #:use-module (guix gexp)
   #:use-module (dotfiles packages omz)
-  #:export (%zsh-environment-variables
-            %zsh-zshenv
-            %zsh-zprofile
-            %zsh-service
-            make-zsh-service))
+  #:export (%zsh-environment-variables %zsh-zshenv %zsh-zprofile %zsh-service
+                                       make-zsh-service))
 
 ;; Default environment variables for ZSH
 (define %zsh-environment-variables
-  `(("ZDOTDIR"        . "$HOME/.config/zsh")
-    ("ZSH"            . ,(file-append omz "/share/oh-my-zsh"))
-    ("SHELL"          . ,(file-append zsh "/bin/zsh"))
-    ("GUIX_LOCPATH"   . "$HOME/.guix-home/profile/lib/locale")
+  `(("ZDOTDIR" . "$HOME/.config/zsh") ("ZSH" unquote
+                                       (file-append omz "/share/oh-my-zsh"))
+    ("SHELL" unquote
+     (file-append zsh "/bin/zsh"))
+    ("GUIX_LOCPATH" . "$HOME/.guix-home/profile/lib/locale")
     ("GIT_SSL_CAPATH" . "/etc/ssl/certs")
-    ("SSL_CERT_DIR"   . "/etc/ssl/certs")
+    ("SSL_CERT_DIR" . "/etc/ssl/certs")
     ("LD_LIBRARY_PATH" . "$HOME/.guix-home/profile/lib")
-    ("PATH"           . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH")))
+    ("PATH" . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH")))
 
 ;; Default zprofile scripts
 (define %zsh-zprofile
@@ -31,37 +29,31 @@ fi
 
 npm config set prefix $HOME/.npm-global
 ")
-        (plain-file "direnv-init.zsh"
-                    "
-eval \"$(direnv hook zsh)\"
-")
-        (plain-file "zoxide-init.zsh"
-                    "
-eval \"$(zoxide init zsh)\"
-")))
+        (plain-file "direnv-init.zsh" "\neval \"$(direnv hook zsh)\"\n")
+        (plain-file "zoxide-init.zsh" "\neval \"$(zoxide init zsh)\"\n")))
 
 ;; Zshenv content to fix glob errors in /etc/profile
 (define %zsh-zshenv
   (list (plain-file "fix-glob-nomatch.zsh"
-                    "# Prevent errors when globs don't match (e.g., /etc/profile.d/*.sh)
+         "# Prevent errors when globs don't match (e.g., /etc/profile.d/*.sh)
 setopt NULL_GLOB
 ")))
 
 ;; Default ZSH service
 (define %zsh-service
   (service home-zsh-service-type
-           (home-zsh-configuration
-            (zshenv %zsh-zshenv)
-            (zprofile %zsh-zprofile)
-            (environment-variables %zsh-environment-variables))))
+           (home-zsh-configuration (zshenv %zsh-zshenv)
+                                   (zprofile %zsh-zprofile)
+                                   (environment-variables
+                                    %zsh-environment-variables))))
 
 ;; Factory function to create ZSH service with custom configuration
-(define* (make-zsh-service #:key
-                           (environment-variables %zsh-environment-variables)
+(define* (make-zsh-service #:key (environment-variables
+                                  %zsh-environment-variables)
                            (zshenv %zsh-zshenv)
                            (zprofile %zsh-zprofile))
   (service home-zsh-service-type
-           (home-zsh-configuration
-            (zshenv zshenv)
-            (zprofile zprofile)
-            (environment-variables environment-variables))))
+           (home-zsh-configuration (zshenv zshenv)
+                                   (zprofile zprofile)
+                                   (environment-variables
+                                    environment-variables))))

@@ -20,7 +20,7 @@
     (build-system copy-build-system)
     (arguments
      (list
-      #:install-plan 
+      #:install-plan
       #~'(("./" "share/"))))
     (synopsis "LSP for micro!")
     (description
