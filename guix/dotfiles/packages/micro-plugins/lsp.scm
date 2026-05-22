@@ -1,4 +1,4 @@
-(define-module (packages micro-plugins lsp)
+(define-module (dotfiles packages micro-plugins lsp)
   #:use-module (guix packages)
   #:use-module (guix build-system copy)
   #:use-module (guix git-download)

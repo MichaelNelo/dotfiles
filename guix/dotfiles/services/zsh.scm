@@ -1,9 +1,9 @@
-(define-module (services zsh)
+(define-module (dotfiles services zsh)
   #:use-module (gnu home services)
   #:use-module (gnu home services shells)
   #:use-module (gnu packages shells)
   #:use-module (guix gexp)
-  #:use-module (packages omz)
+  #:use-module (dotfiles packages omz)
   #:export (%zsh-environment-variables
             %zsh-zshenv
             %zsh-zprofile

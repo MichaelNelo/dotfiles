@@ -1,11 +1,11 @@
-(define-module (services dotfiles)
+(define-module (dotfiles services dotfiles)
   #:use-module (ice-9 match)
   #:use-module (guix gexp)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
-  #:use-module (packages micro-plugins lsp)
-  #:use-module (packages micro-plugins autofmt)
-  #:use-module (packages micro-plugins fzf)
+  #:use-module (dotfiles packages micro-plugins lsp)
+  #:use-module (dotfiles packages micro-plugins autofmt)
+  #:use-module (dotfiles packages micro-plugins fzf)
   #:export (%dotfiles-service %micro-plugins-service))
 
 
@@ -26,9 +26,9 @@
   				  home-xdg-configuration-files-service-type
   				  (plugin-entries micro-plugins)))
 ;; Dotfiles service pointing to dotfiles_client root
-;; Path resolution: services/dotfiles.scm -> ../../ = dotfiles_client/
+;; Path resolution: dotfiles/services/dotfiles.scm -> ../../../ = dotfiles_client/
 ;; Copies .config/* to ~/.config/*
 (define %dotfiles-service
   (service home-dotfiles-service-type
            (home-dotfiles-configuration
-            (directories '("../..")))))
+            (directories '("../../..")))))

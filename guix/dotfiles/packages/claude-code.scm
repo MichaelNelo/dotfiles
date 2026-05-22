@@ -1,4 +1,4 @@
-(define-module (packages claude-code)
+(define-module (dotfiles packages claude-code)
   #:use-module (guix packages)
   #:use-module (guix download)
   #:use-module (guix build-system trivial)

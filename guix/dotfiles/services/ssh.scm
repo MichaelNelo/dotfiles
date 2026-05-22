@@ -1,4 +1,4 @@
-(define-module (services ssh)
+(define-module (dotfiles services ssh)
   #:use-module (gnu home services)
   #:use-module (gnu home services ssh)
   #:export (%ssh-hosts

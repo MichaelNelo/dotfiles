@@ -1,9 +1,9 @@
-(define-module (home)
+(define-module (dotfiles home)
   #:use-module (gnu home)
-  #:use-module (packages manifest)
-  #:use-module (services dotfiles)
-  #:use-module (services ssh)
-  #:use-module (services zsh)
+  #:use-module (dotfiles packages manifest)
+  #:use-module (dotfiles services dotfiles)
+  #:use-module (dotfiles services ssh)
+  #:use-module (dotfiles services zsh)
   #:export (dotfiles-home-environment))
 
 ;; Compose home environment from modular components

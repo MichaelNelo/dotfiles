@@ -1,4 +1,4 @@
-(define-module (packages fzfcolored)
+(define-module (dotfiles packages fzfcolored)
   #:use-module (guix packages)
   #:use-module (guix build-system trivial)
   #:use-module (guix gexp)

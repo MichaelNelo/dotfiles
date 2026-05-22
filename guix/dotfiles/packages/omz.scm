@@ -1,4 +1,4 @@
-(define-module (packages omz)
+(define-module (dotfiles packages omz)
   #:use-module (guix packages)
   #:use-module (guix git-download)
   #:use-module (guix build-system copy)
