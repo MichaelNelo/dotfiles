@@ -110,8 +110,11 @@ The `plan` agent has `edit` / `write` / `apply_patch` / `bash` set to
    sections, in this order:
 
        ## Patches
-       Unified-diff blocks, one per file. Full absolute path in each
-       header. No commentary inside blocks.
+       Unified-diff blocks fenced as ```diff (opencode's markdown
+       renderer uses Shiki, which colors `+` lines green and `-` lines
+       red for this language tag). One fence per file. Include full
+       absolute paths in the `--- a/...` / `+++ b/...` headers. No
+       commentary inside the fence.
 
        ## TODO
        List ready to paste into `todowrite`. Each entry: short content,
