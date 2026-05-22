@@ -3,8 +3,6 @@
   #:use-module (guix download)
   #:use-module (guix build-system trivial)
   #:use-module (guix gexp)
-  #:use-module ((guix licenses) #:prefix license:)
-  #:use-module (gnu packages node))
   #:use-module ((guix licenses)
                 #:prefix license:)
   #:use-module (gnu packages node)
