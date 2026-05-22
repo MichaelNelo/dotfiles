@@ -5,6 +5,20 @@
   #:use-module (guix gexp)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (gnu packages node))
+  #:use-module ((guix licenses)
+                #:prefix license:)
+  #:use-module (gnu packages node)
+  #:use-module (gnu packages bash))
+
+(define version
+  "2.1.143")
+(define-public claude-code-linux-x64
+  (origin
+    (method url-fetch)
+    (uri (string-append
+          "https://registry.npmjs.org/@anthropic-ai/claude-code-linux-x64/-/"
+          "claude-code-linux-x64-" version ".tgz"))
+    (sha256 (base32 "1165r7xqcs4vs6l613469pkiv3xvy6rhbh0r9ma4dqvhbrv21qk3"))))
 
 (define-public claude-code
   (package
