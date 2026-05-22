@@ -1,3 +1,6 @@
+-- configure shell to use login wrapper (forces PATH from .zprofile)
+vim.o.shell = "/home/mknelo/.config/zsh/login-wrapper.sh"
+vim.o.shellcmdflag = "-c"
 vim.g.base46_cache = vim.fn.stdpath "data" .. "/base46/"
 vim.g.mapleader = " "
 
