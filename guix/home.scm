@@ -46,7 +46,7 @@
   #:use-module (services openssh)
   #:use-module (services channels)
   #:use-module (services zsh)
-  #:export     (my-home))
+  #:export (my-home))
 
 (define main-packages
   ;; Terminal tools
@@ -106,19 +106,18 @@
       (list bash wget nss-certs ncurses libiconv)
       '()))
 
-(define my-home 
+(define my-home
   (home-environment
     (packages (append main-packages dev-packages))
     (services
-      (list
-        %dotfiles-service
-        %gcc-activation
-        %ssh-host-keys-setup
-        %ssh-client-keys-setup
-        %ollama-service
-        %dopbear-ssh-service
-        %openssh-service
-        %channels-service
-        (zsh-service main-packages)))))
+     (list %dotfiles-service
+           %gcc-activation
+           %ssh-host-keys-setup
+           %ssh-client-keys-setup
+           %ollama-service
+           %dopbear-ssh-service
+           %openssh-service
+           %channels-service
+           (zsh-service main-packages)))))
 
 my-home

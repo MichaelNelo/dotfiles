@@ -2,7 +2,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
-  #:export     (%dotfiles-service))
+  #:export (%dotfiles-service))
 
 (define %dotfiles-service
   (service home-dotfiles-service-type

@@ -45,8 +45,7 @@
           (let* ((npm #$(file-append node "/bin/npm"))
                  (node-bin #$(file-append node "/bin/node"))
                  (sh-bin #$(file-append bash "/bin/sh"))
-                 (ld-linux #$(file-append glibc
-                                          "/lib/ld-linux-x86-64.so.2"))
+                 (ld-linux #$(file-append glibc "/lib/ld-linux-x86-64.so.2"))
                  (glibc-lib #$(file-append glibc "/lib"))
                  (out #$output)
                  (bin-dir (string-append out "/bin"))
@@ -54,7 +53,7 @@
                  (claude-exe (string-append out
                               "/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe"))
                  (wrapper (string-append bin-dir "/claude")))
-
+            
             (setenv "HOME" out)
             (setenv "NPM_CONFIG_PREFIX" out)
             (setenv "NPM_CONFIG_GLOBAL" "true")
@@ -105,8 +104,12 @@
               (delete-file wrapper))
             (call-with-output-file wrapper
               (lambda (port)
-                (format port "#!~a~%exec ~a --library-path ~a ~a \"$@\"~%"
-                        sh-bin ld-linux glibc-lib claude-exe)))
+                (format port
+                        "#!~a~%exec ~a --library-path ~a ~a \"$@\"~%"
+                        sh-bin
+                        ld-linux
+                        glibc-lib
+                        claude-exe)))
             (chmod wrapper #o755)
 
             #t))))
