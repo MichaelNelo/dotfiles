@@ -7,6 +7,7 @@
   #:use-module (gnu packages nss)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages shells)
+  #:use-module ((dotfiles packages nushell) #:select (nushell-0.104.0))
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages node)
   #:use-module (gnu packages text-editors)
@@ -34,6 +35,7 @@
         git
         zsh
         omz
+        nushell-0.104.0
         emacs-no-x
         glibc-locales
         fzf
