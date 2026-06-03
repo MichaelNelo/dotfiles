@@ -1,0 +1,2 @@
+# yazi standalone (outside grs layout). Inherits upstream defaults.
+# Role-specific configs live in current/, preview/, neotree/.

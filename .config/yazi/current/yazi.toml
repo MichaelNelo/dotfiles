@@ -1,0 +1,14 @@
+# yazi-current (grs explore tab, top-left)
+# Single column view: parent/preview hidden.
+[mgr]
+ratio = [0, 8, 0]
+
+[opener]
+edit = [
+  { run = '''${EDITOR:-vi} "$@"; ya pub-to 1003 "grs-reveal-${GRS_DDS_TAG:-default}" --str "$0" >/dev/null 2>&1; ${GRS_OPEN_HOOK:-true}''', desc = "edit (kak)", block = false, for = "unix" },
+]
+
+[which]
+cols         = 1
+sort_by      = "none"
+sort_sensitive = false

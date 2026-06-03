@@ -1,0 +1,2 @@
+-- yazi standalone (outside grs layout). No DDS sync.
+-- grs logic lives in current/init.lua and preview/init.lua.

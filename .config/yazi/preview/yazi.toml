@@ -1,0 +1,12 @@
+# yazi-preview (grs explore tab, bottom-left)
+# Maximizes preview panel. Keeps a thin current column because yazi requires it.
+[mgr]
+ratio = [0, 0, 8]
+
+[preview]
+wrap = "yes"
+
+[opener]
+edit = [
+  { run = ':', desc = "noop (preview)", block = false, for = "unix" },
+]

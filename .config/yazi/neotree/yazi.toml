@@ -1,0 +1,9 @@
+# yazi-neotree: sidebar in the edit tab. Same single-column as current/,
+# same opener (delegated to $EDITOR=kak-edit.sh).
+[mgr]
+ratio = [0, 8, 0]
+
+[opener]
+edit = [
+  { run = '''${EDITOR:-vi} "$@"; ${GRS_OPEN_HOOK:-true}''', desc = "edit (kak)", block = false, for = "unix" },
+]
