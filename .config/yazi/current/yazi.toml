@@ -2,6 +2,7 @@
 # Single column view: parent/preview hidden.
 [mgr]
 ratio = [0, 8, 0]
+show_hidden = true
 
 [opener]
 edit = [

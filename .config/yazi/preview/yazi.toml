@@ -2,6 +2,7 @@
 # Maximizes preview panel. Keeps a thin current column because yazi requires it.
 [mgr]
 ratio = [0, 0, 8]
+show_hidden = true
 
 [preview]
 wrap = "yes"

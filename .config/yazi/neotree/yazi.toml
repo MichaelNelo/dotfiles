@@ -2,6 +2,7 @@
 # same opener (delegated to $EDITOR=kak-edit.sh).
 [mgr]
 ratio = [0, 8, 0]
+show_hidden = true
 
 [opener]
 edit = [
