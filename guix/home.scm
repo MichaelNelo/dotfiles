@@ -27,6 +27,7 @@
   #:use-module (gnu packages curl)
   #:use-module (gnu packages autotools)
   #:use-module (gnu packages llvm)
+  #:use-module (gnu packages package-management)
   ;; Local package modules
   #:use-module (packages omz)
   #:use-module (packages opencode)
@@ -46,6 +47,7 @@
   #:use-module (services openssh)
   #:use-module (services channels)
   #:use-module (services zsh)
+  #:use-module (services nix)
   #:export (my-home))
 
 (define main-packages
@@ -91,6 +93,7 @@
         zellij
         nvr
         yazi
+        nix
         direnv
         zoxide
         fzf
@@ -120,6 +123,7 @@
            %dopbear-ssh-service
            %openssh-service
            %channels-service
+           %devenv-install
            (zsh-service main-packages)))))
 
 my-home

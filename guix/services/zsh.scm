@@ -57,4 +57,4 @@ npm config set prefix $HOME/.npm-global
                                                             ("LD_LIBRARY_PATH" . "/usr/lib/wsl/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}")
                                                             ("ZELLIJ_CONFIG_DIR" . "$HOME/dotfiles/.config/zellij")
                                                             ("YAZI_CONFIG_HOME" . "$HOME/dotfiles/.config/yazi")
-                                                            ("PATH" . "$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"))))))
+                                                            ("PATH" . "$HOME/.local/bin:$HOME/.npm-global/bin:$HOME/.nix-profile/bin:$PATH"))))))
