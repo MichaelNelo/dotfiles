@@ -2,6 +2,7 @@
 # Sólo muestra la columna current. parent/preview ocultos.
 [mgr]
 ratio = [0, 8, 0]
+show_hidden = true
 
 [opener]
 edit = [

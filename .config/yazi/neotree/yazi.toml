@@ -2,7 +2,6 @@
 # current/, mismo opener (delegado a $EDITOR=nvr).
 [mgr]
 ratio = [0, 8, 0]
-# Sin esto, reveal remoto sobre un hidden substituye y rompe el echo guard.
 show_hidden = true
 
 [opener]

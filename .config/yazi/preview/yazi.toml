@@ -3,7 +3,6 @@
 # cursor porque yazi requiere current visible.
 [mgr]
 ratio = [0, 0, 8]
-# Sin esto, reveal remoto sobre un hidden substituye y rompe el echo guard.
 show_hidden = true
 
 [preview]
