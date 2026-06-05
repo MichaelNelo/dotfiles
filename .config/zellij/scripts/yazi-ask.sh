@@ -26,6 +26,8 @@ if [[ "${1:-}" == "--inner" ]]; then
     [[ ${#selected[@]} -gt 0 ]]         && echo "selected: ${#selected[@]} item(s)"
     echo
 
+    trap 'zellij action close-pane; exit 0' INT TERM
+
     read -e -r -p "cmd (tokens %f %F %d %D)> " template
     if [[ -z "$template" ]]; then
         zellij action close-pane
@@ -57,7 +59,6 @@ if [[ "${1:-}" == "--inner" ]]; then
     cmd="${cmd//%d/$(printf '%q' "$PWD")}"
     cmd="${cmd//$PLACEHOLDER/%}"
 
-    printf '\n$ %s\n\n' "$cmd"
     bash -c "$cmd"
     ec=$?
     printf '\n[exit %s — press Enter to close] ' "$ec"
