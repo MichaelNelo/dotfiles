@@ -8,7 +8,10 @@
   #:use-module (guix-science-nonfree packages cuda))
 
 (define commit
-  "4f13cb742476d81a6b42a2aa5996e82a478c2481")
+  "4fb16eccce5e451b40014355f97374d692480a4d")
+
+(define commit-hash
+  "1z6995lkfznygf50zsqi3l6kr88jnzhdfcf2hsxjzjrnxalm7711")
 
 (define (ui-asset name hash)
   (origin
@@ -24,11 +27,11 @@
             "1wsapkb24yhh51zqs93s4izy6nhm2blxk15d64pwqvj5d6n6v99y"))
 
 (define ui-bundle-js
-  (ui-asset "bundle.js" "0yh4q4hz6w1q2fhz5kzs3wini0pzld8y1aswlqj6gmhz2fm5iagr"))
+  (ui-asset "bundle.js" "12wf5gzm3mb7yxab34k325kkn1ixay5zlfrgrbj0wv6msngglyfr"))
 
 (define ui-bundle-css
   (ui-asset "bundle.css"
-            "0yy16qyp0zcgwl6vfbzwrvjd25fj0rvkvamm04f3ar9jx9bd9caf"))
+            "0dx1q64m25l64amswjhfw7c3yj8hdvz79vh7cymj2dr4njqqsxfy"))
 
 (define ui-loading-html
   (ui-asset "loading.html"
@@ -45,7 +48,7 @@
              (inherit (origin-uri (package-source llama-cpp)))
              (commit commit)))
        (sha256
-        (base32 "0jza72z436gljyinrb12jw4yij9ygwabvkywvb9sm3j0xlr5n0wf"))))
+        (base32 commit-hash))))
     (native-inputs (append (package-native-inputs llama-cpp)
                            `(("ui-index-html" ,ui-index-html)
                              ("ui-bundle-js" ,ui-bundle-js)
@@ -64,6 +67,7 @@
                 "-DCMAKE_CUDA_ARCHITECTURES=120"))
        ((#:phases phases)
         #~(modify-phases #$phases
+            (delete 'fix-python-shebang)
             (add-after 'unpack 'provide-ui-assets
               (lambda* (#:key inputs #:allow-other-keys)
                 (let ((dist-dir "build/tools/ui/dist"))
