@@ -33,17 +33,6 @@ return {
     ft = { "scala", "sbt", "mill", "sc" },
   },
   {
-    "greggh/claude-code.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
-    event = "VeryLazy",
-    keys = {
-      { "<C-,>", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude Code", mode = { "n", "t" } },
-    },
-    config = function()
-      require("claude-code").setup(require "configs.claude-code")
-    end,
-  },
-  {
     "iamcco/markdown-preview.nvim",
     cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
     build = function() vim.fn["mkdp#util#install"]() end,
@@ -53,7 +42,6 @@ return {
     end,
     ft = { "markdown" },
   },
-
   {
     "nickjvandyke/opencode.nvim",
     keys = {
