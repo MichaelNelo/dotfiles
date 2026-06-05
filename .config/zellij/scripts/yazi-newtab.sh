@@ -36,7 +36,10 @@ if [[ "${1:-}" == "--inner" ]]; then
     [[ ${#selected[@]} -gt 0 ]]         && echo "selected: ${#selected[@]} item(s)"
     echo
 
-    read -e -r -p "cmd (tokens %f %F %d %D)> " template
+    # No -e (readline): floating pane init / SIGWINCH puede hacer que readline
+    # redibuje el prompt y aparezca duplicado (misma línea o líneas separadas).
+    printf '%s' 'cmd (tokens %f %F %d %D)> '
+    read -r template
     if [[ -z "$template" ]]; then
         zellij action close-pane
         exit 0
@@ -82,6 +85,7 @@ if [[ "${1:-}" == "--inner" ]]; then
         echo 'echo'
         echo "printf '[exit %s — press Enter to exit] ' \"\$ec\""
         echo 'read -r _'
+        echo 'zellij action close-tab'
         printf 'rm -rf %q\n' "$workdir"
     } > "$runner_path"
     chmod +x "$runner_path"
