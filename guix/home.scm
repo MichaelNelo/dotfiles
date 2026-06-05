@@ -95,6 +95,8 @@
         zoxide
         fzf
         fzf-tab
+        (specification->package "socat")
+        (specification->package "jq")
         (specification->package "sqlite")
         (specification->package "man-db")
         (specification->package "octave-cli")
