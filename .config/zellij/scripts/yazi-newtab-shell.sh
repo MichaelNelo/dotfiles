@@ -17,8 +17,8 @@ layout {
             plugin location="tab-bar";
         }
         children;
-        pane size=2 borderless=true {
-            plugin location="status-bar";
+        pane size=1 borderless=true {
+            plugin location="zjstatus";
         }
     }
     tab name="$tab_name" {
