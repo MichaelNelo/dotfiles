@@ -36,8 +36,7 @@ if [[ "${1:-}" == "--inner" ]]; then
     [[ ${#selected[@]} -gt 0 ]]         && echo "selected: ${#selected[@]} item(s)"
     echo
 
-    # No -e (readline): floating pane init / SIGWINCH puede hacer que readline
-    # redibuje el prompt y aparezca duplicado (misma línea o líneas separadas).
+    # No -e: SIGWINCH del floating pane le hace duplicar el prompt a readline.
     printf '%s' 'cmd (tokens %f %F %d %D)> '
     read -r template
     if [[ -z "$template" ]]; then

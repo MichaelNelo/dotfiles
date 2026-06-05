@@ -1,12 +1,6 @@
--- yazi-neotree (id 1003): sidebar en la tab edit. Bidireccionalmente
--- sincronizado con yazi-current (1001) — forwardea hover/cd locales hacia
--- 1001 y 1002 (preview), y aplica los recibidos desde current. Además
--- conserva el listener original de grs-reveal-<tag>, que el opener de
--- yazi-current usa para que el sidebar haga reveal sobre el archivo abierto
--- (cd al dirname + hover del file).
---
--- Echo guard: idem yazi-current — tras aplicar un evento remoto, descarta el
--- primer evento local que matchee la URL para no rebotar al sender.
+-- yazi-neotree (id 1003): sync bidireccional con current (1001) + listener
+-- de grs-reveal-<tag> (el opener de current lo usa para hovear el archivo
+-- abierto). Echo guard URL-match igual que current.
 
 local tag = os.getenv("GRS_DDS_TAG") or "default"
 local hover_kind = "grs-hover-" .. tag
@@ -17,7 +11,7 @@ local skip_cd_url = nil
 
 ps.sub_remote("grs-reveal-" .. tag, function(body)
     if type(body) == "string" and #body > 0 then
-        -- reveal cd al dirname y hovea el file: guardamos ambos echoes.
+        -- reveal dispara cd al dirname + hover al file: guardamos ambos.
         skip_hover_url = body
         skip_cd_url = body:gsub("/[^/]*$", "")
         ya.emit("reveal", { body })

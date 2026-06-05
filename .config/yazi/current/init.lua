@@ -1,23 +1,6 @@
--- yazi-current (id 1001): primary navigator. Forwardea hover/cd hacia
--- yazi-preview (1002) y yazi-neotree (1003), y aplica los hover/cd que
--- recibe desde neotree, manteniendo sync bidireccional.
---
--- Why GRS_DDS_TAG en el kind?
--- El broker yazi-dds es per-user (un solo socket en $XDG_RUNTIME_DIR), así
--- que dos zellij sessions con grs comparten bus y los kinds globales se
--- cruzarían. Tagging con la sesión zellij aísla cada layout.
---
--- Why read from cx instead of body.url?
--- EmberHover::owned y EmberCd::owned descartan la URL cuando el evento se
--- entrega LOCAL. Lives::scope inyecta `cx` como global durante accept_payload,
--- así que cx.active.current.{hovered,cwd} nos da la URL real.
---
--- Echo guard:
--- Tras recibir un hover/cd remoto y aplicarlo con ya.emit, el evento local
--- resultante se publicaría de vuelta al sender y entraríamos en loop.
--- Guardamos la URL aplicada y descartamos el primer evento local que matchee.
--- Si el ya.emit no dispara local (porque ya estábamos ahí), el guard queda
--- stale; a lo sumo perdemos un publish del próximo manual move a esa URL.
+-- yazi-current (id 1001): publica hover/cd a preview (1002) y neotree (1003);
+-- aplica los hover/cd que recibe de neotree (sync bidireccional).
+-- Echo guard URL-match: descarta el primer local que matchee el remote aplicado.
 
 local fifo = os.getenv("GRS_CWD_FIFO")
 local tag = os.getenv("GRS_DDS_TAG") or "default"
@@ -27,6 +10,8 @@ local cd_kind = "grs-cd-" .. tag
 local skip_hover_url = nil
 local skip_cd_url = nil
 
+-- cx.active.current.hovered (no body.url): EmberHover::owned descarta la URL
+-- cuando el evento se entrega LOCAL.
 ps.sub("hover", function(_)
     local h = cx.active.current.hovered
     if h and h.url then
@@ -44,8 +29,7 @@ ps.sub("cd", function(_)
     local cwd = cx.active.current.cwd
     if cwd then
         local url = tostring(cwd)
-        -- lazygit follow: write to fifo SIEMPRE, así también sigue cds
-        -- originados en neotree (que llegan acá vía sub_remote más abajo).
+        -- lazygit fifo: write SIEMPRE, también para cds que vienen de neotree.
         if fifo and #fifo > 0 then
             os.execute(string.format("printf '%%s\\n' %q >> %q &", url, fifo))
         end
