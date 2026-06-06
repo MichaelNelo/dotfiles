@@ -3,6 +3,7 @@
   #:use-module (guix gexp)
   #:use-module (dotfiles packages onepassword-cli)
   #:export (make-op-account-add-service
+            make-op-items-provision-service
             %op-nushell-config))
 
 ;; Nushell config snippets for op CLI.  Append to your %nushell-config-nu:
@@ -94,4 +95,87 @@
            (format #t "[op-account-add] error ~a; skipping~%" args)
            #t))))
   (simple-service 'op-account-add home-activation-service-type
+                  #~(system* #$script)))
+
+;; Generic provision activation: download a list of items from 1Password
+;; into files under $HOME.  Used for SSH keys, app-specific secrets, etc.
+;;
+;; ITEMS is a list of (URI DEST-REL MODE) tuples:
+;;   URI       — full op:// URI
+;;   DEST-REL  — destination path relative to $HOME (e.g. ".ssh/key")
+;;   MODE      — octal integer like #o600
+;;
+;; For each item: if file missing AND op authed, download.  Master-password
+;; prompt during reconfigure if signin needed.  Idempotent: existing files
+;; skip the op read.
+(define* (make-op-items-provision-service
+          #:key (package onepassword-cli)
+                (shorthand "my")
+                (items '()))
+  (define script
+    (program-file
+     "op-items-provision"
+     #~(catch #t
+         (lambda ()
+           (use-modules (ice-9 popen) (ice-9 rdelim) (ice-9 textual-ports))
+           (define op   #$(file-append package "/bin/op"))
+           (define shorthand #$shorthand)
+           (define home (getenv "HOME"))
+           (define items '#$items)
+           (define (silent-status cmd args)
+             (let ((pid (primitive-fork)))
+               (if (zero? pid)
+                   (begin
+                     (close-fdes 1) (close-fdes 2)
+                     (open-fdes "/dev/null" 1) (open-fdes "/dev/null" 2)
+                     (apply execl cmd cmd args))
+                   (status:exit-val (cdr (waitpid pid))))))
+           (define (capture cmd . args)
+             (let* ((port (apply open-pipe* OPEN_READ cmd args))
+                    (out  (get-string-all port))
+                    (ec   (status:exit-val (close-pipe port))))
+               (cons ec out)))
+           (define (ensure-signed-in)
+             (or (eqv? 0 (silent-status op '("whoami")))
+                 (begin
+                   (format #t "[op-items-provision] signing in to op (master password)~%")
+                   (let* ((r     (capture op "signin" "--account" shorthand "--raw"))
+                          (token (string-trim-right (cdr r))))
+                     (and (eqv? 0 (car r))
+                          (not (string-null? token))
+                          (begin
+                            (setenv (string-append "OP_SESSION_" shorthand) token)
+                            #t))))))
+           (define (download item)
+             (let* ((uri  (list-ref item 0))
+                    (rel  (list-ref item 1))
+                    (mode (list-ref item 2))
+                    (dest (string-append home "/" rel)))
+               (unless (file-exists? dest)
+                 (let* ((parent (dirname dest))
+                        (r      (capture op "read" uri))
+                        (val    (cdr r)))
+                   (cond
+                    ((and (eqv? 0 (car r)) (not (string-null? val)))
+                     (unless (file-exists? parent)
+                       (mkdir parent))
+                     (call-with-output-file dest
+                       (lambda (p) (display val p)))
+                     (chmod dest mode)
+                     (format #t "[op-items-provision] downloaded ~a~%" rel))
+                    (else
+                     (format #t "[op-items-provision] download ~a failed (~a)~%" rel (car r))))))))
+           ;; If there are no items configured, do nothing
+           (cond
+            ((null? items)
+             #t)
+            ((not (ensure-signed-in))
+             (format #t "[op-items-provision] op signin failed; skipping~%"))
+            (else
+             (for-each download items)))
+           #t)
+         (lambda (key . args)
+           (format #t "[op-items-provision] error ~a ~a; skipping~%" key args)
+           #t))))
+  (simple-service 'op-items-provision home-activation-service-type
                   #~(system* #$script)))
