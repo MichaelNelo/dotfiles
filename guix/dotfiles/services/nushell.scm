@@ -46,8 +46,8 @@ Escapes backslash, dollar sign, and double quote."
      ((char=? c #\\) "\\\\")
      ((char=? c #\$) "\\$")
      ((char=? c #\") "\\\"")
-     (else c)))
-  (apply string (map escape-char (string->list value))))
+     (else (string c))))
+  (apply string-append (map escape-char (string->list value))))
 
 ;; ========================================
 ;; Configuration definition
