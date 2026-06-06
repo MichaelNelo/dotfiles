@@ -36,7 +36,9 @@ if [[ "${1:-}" == "--inner" ]]; then
     [[ ${#selected[@]} -gt 0 ]]         && echo "selected: ${#selected[@]} item(s)"
     echo
 
-    read -e -r -p "cmd (tokens %f %F %d %D)> " template
+    printf '%s' 'cmd (tokens %f %F %d %D)> '
+    read -r template
+
     if [[ -z "$template" ]]; then
         zellij action close-pane
         exit 0
