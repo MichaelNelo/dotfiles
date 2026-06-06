@@ -55,6 +55,7 @@
         micro-plugin-autofmt
         micro-plugin-fzf
         crun
+        git-crypt
         claude-code))
 
 ;; Additional packages for development/testing environments
