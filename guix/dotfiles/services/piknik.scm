@@ -150,19 +150,24 @@
                  (format #t "[piknik-provision] assembled ~a~%" toml-path))))
 
            ;; Pipeline
-           (unless (file-exists? parts-dir)
-             (mkdir parts-dir))
-           (chmod parts-dir #o700)
-
+           ;; Short-circuit: if the assembled TOML already exists, the whole
+           ;; pipeline is done — skip signin and the master-password prompt.
            (cond
-            ((not (ensure-signed-in))
-             (format #t "[piknik-provision] op signin failed; skipping~%"))
+            ((file-exists? toml-path)
+             #t)
             (else
-             (unless (item-exists?)
-               (bootstrap-item))
-             (when (item-exists?)
-               (for-each download-field fields)
-               (assemble-toml))))
+             (unless (file-exists? parts-dir)
+               (mkdir parts-dir))
+             (chmod parts-dir #o700)
+             (cond
+              ((not (ensure-signed-in))
+               (format #t "[piknik-provision] op signin failed; skipping~%"))
+              (else
+               (unless (item-exists?)
+                 (bootstrap-item))
+               (when (item-exists?)
+                 (for-each download-field fields)
+                 (assemble-toml))))))
            #t)
          (lambda (key . args)
            (format #t "[piknik-provision] error ~a ~a; skipping~%" key args)

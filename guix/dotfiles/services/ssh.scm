@@ -10,7 +10,7 @@
                       (user "michaelnelo66@outlook.com")
                       (identity-file "~/.ssh/personal.github.id_ed25519"))
         (openssh-host (name "local.zo.eva")
-                      (host-name "192.168.1.2")
+                      (host-name "192.168.1.16")
                       (port 2222)
                       (user "mknelo")
                       (identity-file "~/.ssh/eva.personal.id_dropbear"))))

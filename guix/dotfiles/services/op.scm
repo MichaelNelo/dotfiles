@@ -117,7 +117,8 @@
      "op-items-provision"
      #~(catch #t
          (lambda ()
-           (use-modules (ice-9 popen) (ice-9 rdelim) (ice-9 textual-ports))
+           (use-modules (ice-9 popen) (ice-9 rdelim) (ice-9 textual-ports)
+                        (srfi srfi-1))
            (define op   #$(file-append package "/bin/op"))
            (define shorthand #$shorthand)
            (define home (getenv "HOME"))
@@ -165,9 +166,17 @@
                      (format #t "[op-items-provision] downloaded ~a~%" rel))
                     (else
                      (format #t "[op-items-provision] download ~a failed (~a)~%" rel (car r))))))))
-           ;; If there are no items configured, do nothing
+           ;; Short-circuit: if every destination already exists, skip the
+           ;; signin prompt entirely.  We only need op (and the master
+           ;; password) when there's something to fetch.
+           (define (item-dest item)
+             (string-append home "/" (list-ref item 1)))
+           (define (all-present?)
+             (every (lambda (it) (file-exists? (item-dest it))) items))
            (cond
             ((null? items)
+             #t)
+            ((all-present?)
              #t)
             ((not (ensure-signed-in))
              (format #t "[op-items-provision] op signin failed; skipping~%"))
