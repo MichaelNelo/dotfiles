@@ -20,9 +20,11 @@
   #:use-module (gnu packages compression)
   #:use-module (gnu packages commencement)
   #:use-module (gnu packages containers)
+  #:use-module ((gnu packages dns) #:select (isc-bind))  ;bind:utils for dig/host/nslookup
   #:use-module (dotfiles packages omz)
   #:use-module (dotfiles packages fzfcolored)
   #:use-module (dotfiles packages claude-code)
+  #:use-module (dotfiles packages jadx)
   #:use-module (dotfiles packages micro-plugins lsp)
   #:use-module (dotfiles packages micro-plugins autofmt)
   #:use-module (dotfiles packages micro-plugins fzf)
@@ -56,6 +58,8 @@
         micro-plugin-fzf
         crun
         git-crypt
+        `(,isc-bind "utils")   ;dig, host, nslookup — DNS diagnostics
+        jadx                   ;dex→java decompiler (Android APKs) — brings openjdk21 too
         claude-code))
 
 ;; Additional packages for development/testing environments
