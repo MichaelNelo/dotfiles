@@ -74,7 +74,21 @@
          (close-pipe port)))))
 
 (define %nushell-env-nu
-  (list (plain-file "direnv-init.nu" "
+  (list
+        ;; Force XDG_RUNTIME_DIR to the per-user tmpfs at /run/user/UID.
+        ;;
+        ;; WSL2 with WSLg overrides XDG_RUNTIME_DIR to /mnt/wslg/runtime-dir
+        ;; after wsl-boot-program's setenv, and that path is a DrvFs mount
+        ;; from Windows — not usable for Unix sockets.  User shepherd binds
+        ;; at /run/user/UID/shepherd/socket, ssh-agent at
+        ;; /run/user/UID/ssh-agent.sock, op-agent at
+        ;; /run/user/UID/op-agent.sock — every downstream lookup
+        ;; (herd, $SSH_AUTH_SOCK, op-agent CLI) needs XDG_RUNTIME_DIR to
+        ;; agree.  Correct it first so the subsequent chunks resolve right.
+        (plain-file "xdg-runtime-dir-init.nu"
+                    "$env.XDG_RUNTIME_DIR = $\"/run/user/(^id -u | str trim)\"
+")
+        (plain-file "direnv-init.nu" "
 $env.config = {
     hooks: {
       env_change: {
