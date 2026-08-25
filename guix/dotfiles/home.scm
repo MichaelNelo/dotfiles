@@ -171,19 +171,18 @@ try { ssh-load-keys }
 # op-agent: if the 1Password session daemon has a live token, export
 # OP_SESSION_my so `op`, `guix home reconfigure`, and every child
 # process inherit it without a per-shell prompt.  Silent no-op if the
-# agent daemon isn't up yet or the session is locked.
+# agent daemon isn't up yet or the session is locked.  `for` (not
+# `each`) — nushell isolates env in `each` closures, load-env inside
+# would only affect the closure scope, not the shell's env.
 try {
     let out = (^op-agent env | complete)
     if $out.exit_code == 0 and (($out.stdout | str trim) != '') {
-        $out.stdout
-        | lines
-        | each { |l|
-            let kv = ($l | split row -n 2 '=')
+        for line in ($out.stdout | lines) {
+            let kv = ($line | split row -n 2 '=')
             if ($kv | length) == 2 {
                 load-env { ($kv | get 0): ($kv | get 1) }
             }
-          }
-        | ignore
+        }
     }
 }
 ")))
