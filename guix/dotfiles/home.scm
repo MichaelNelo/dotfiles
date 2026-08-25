@@ -144,24 +144,21 @@ def ssh-load-keys [] {
         $\"($env.HOME)/.ssh/eva.personal.id_dropbear\"
         $\"($env.HOME)/.ssh/codeberg.id_ed25519\"
     ]
-    # Fingerprints currently in the agent — second whitespace-delimited
-    # field of each `ssh-add -l` line.  Skips silently if the agent is
-    # empty or unreachable (returns []).
-    let loaded = (
-        try {
-            ^ssh-add -l
-            | lines
-            | each {|l| $l | split row -r '\\s+' | get 1 }
-        } catch { [] }
-    )
+    # `| complete` captures stdout/stderr into a record instead of
+    # leaking stderr to the shell (nushell's `out+err> /dev/null` on
+    # externals didn't reliably suppress ssh-add's connection errors).
+    let ls = (^ssh-add -l | complete)
+    let loaded = if $ls.exit_code == 0 {
+        $ls.stdout | lines | each {|l| $l | split row -r '\\s+' | get 1 }
+    } else { [] }
     for key in $keys {
         if not ($key | path exists) { continue }
-        let fp = (
-            try { ^ssh-keygen -lf $key | split row -r '\\s+' | get 1 }
-            catch { '' }
-        )
+        let kg = (^ssh-keygen -lf $key | complete)
+        let fp = if $kg.exit_code == 0 {
+            $kg.stdout | split row -r '\\s+' | get 1
+        } else { '' }
         if ($fp != '' and ($fp not-in $loaded)) {
-            try { ^ssh-add $key out+err> /dev/null }
+            ^ssh-add $key | complete | ignore
         }
     }
 }
