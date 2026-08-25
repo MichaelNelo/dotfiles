@@ -203,6 +203,20 @@ try {
           (file-append oh-my-posh "/share/oh-my-posh/themes/tokyo.omp.json")
           "\n"))))
 
+;; login.nu — runs only on login shells.  Fires ~/.guix-home/on-first-login,
+;; which starts the user Shepherd (ssh-agent, op-agent, piknik-server, …).
+;; Bash's /etc/profile does this for bash logins; nushell needs the explicit
+;; call.  The script is idempotent (flag file in $XDG_RUNTIME_DIR, tmpfs), so
+;; it no-ops on subsequent nushell logins within the same boot.
+(define %nushell-login-nu
+  (list (plain-file
+         "guix-home-first-login.nu"
+         "let hook = $\"($env.HOME)/.guix-home/on-first-login\"
+if ($hook | path exists) {
+    try { ^$hook | complete | ignore }
+}
+")))
+
 ;; Aliases with spaces are emitted as `def NAME [] { … }` by the nushell
 ;; service (see serialize-nushell-aliases) — nushell's plain `alias` only
 ;; supports a single command atom, so multi-arg wrappers need def.
@@ -219,7 +233,8 @@ try {
    #:package nushell-0.104.0
    #:aliases %nushell-aliases
    #:env-nu %nushell-env-nu
-   #:config-nu %nushell-config-nu))
+   #:config-nu %nushell-config-nu
+   #:login-nu %nushell-login-nu))
 
 ;; ========================================
 ;; SSH AGENT — user shepherd service
