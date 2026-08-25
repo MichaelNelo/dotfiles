@@ -42,6 +42,7 @@
 (define %base-packages
   (list less
         ripgrep
+        bash                   ;direnv shells out to bash for .envrc
         git
         zsh
         omz
