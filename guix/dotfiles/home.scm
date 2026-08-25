@@ -271,16 +271,23 @@ try { ssh-load-keys }
 ;; 1PASSWORD-PROVISIONED SECRETS
 ;; ========================================
 
-;; SSH keys downloaded by make-op-items-provision-service on activation.
-;; Each tuple: (op-URI dest-rel-to-$HOME mode).  Idempotent: existing
-;; files skip the op read.
+;; Secrets downloaded by make-op-items-provision-service on activation.
+;; Tuple: (op-URI dest-rel-to-$HOME mode [decode]).
+;; `decode` is 'raw (default) or 'base64.  Idempotent: existing files
+;; skip the op read.
 (define %op-provisioned-items
   '(("op://Personal/PERSONAL GITHUB SSH/private key?ssh-format=openssh"
      ".ssh/personal.github.id_ed25519" #o600)
     ("op://Personal/LOCAL SSH CLIENT KEY/private key?ssh-format=openssh"
      ".ssh/eva.personal.id_dropbear" #o600)
     ("op://Personal/CODEBERG SSH KEY/private key?ssh-format=openssh"
-     ".ssh/codeberg.id_ed25519" #o600)))
+     ".ssh/codeberg.id_ed25519" #o600)
+    ;; git-crypt symmetric key for the dotfiles repo — stored in 1P as
+    ;; a base64-encoded Secure Note (default field `notesPlain`).  Used
+    ;; via `git-crypt unlock ~/.config/git/dotfiles/git-crypt.key` in a
+    ;; fresh clone.
+    ("op://Personal/DOTFILES GIT-CRYPT KEY/notesPlain"
+     ".config/git/dotfiles/git-crypt.key" #o600 base64)))
 
 ;; ========================================
 ;; COMPOSE HOME ENVIRONMENT

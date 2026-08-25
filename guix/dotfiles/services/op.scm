@@ -147,25 +147,49 @@
                           (begin
                             (setenv (string-append "OP_SESSION_" shorthand) token)
                             #t))))))
+           ;; Recursive mkdir (single-level `mkdir` fails for
+           ;; dests like ~/.config/git/dotfiles/…).
+           (define (mkdir-p path)
+             (unless (file-exists? path)
+               (mkdir-p (dirname path))
+               (mkdir path)))
+           ;; Base64-decode STR via base64(1) (avoids pulling gcrypt just
+           ;; for this).  Round-trips through a temp file to sidestep
+           ;; bidirectional-pipe pain in guile.
+           (define (base64-decode-to-file str dest)
+             (let ((tmp (string-append dest ".b64")))
+               (call-with-output-file tmp
+                 (lambda (p) (display str p)))
+               (let ((ec (system (string-append
+                                  "base64 -d < " tmp " > " dest))))
+                 (false-if-exception (delete-file tmp))
+                 (zero? ec))))
            (define (download item)
-             (let* ((uri  (list-ref item 0))
-                    (rel  (list-ref item 1))
-                    (mode (list-ref item 2))
-                    (dest (string-append home "/" rel)))
+             (let* ((uri     (list-ref item 0))
+                    (rel     (list-ref item 1))
+                    (mode    (list-ref item 2))
+                    (decode  (if (> (length item) 3)
+                                 (list-ref item 3)
+                                 'raw))
+                    (dest    (string-append home "/" rel)))
                (unless (file-exists? dest)
-                 (let* ((parent (dirname dest))
-                        (r      (capture op "read" uri))
-                        (val    (cdr r)))
+                 (mkdir-p (dirname dest))
+                 (let* ((r    (capture op "read" uri))
+                        (val  (cdr r)))
                    (cond
-                    ((and (eqv? 0 (car r)) (not (string-null? val)))
-                     (unless (file-exists? parent)
-                       (mkdir parent))
+                    ((not (and (eqv? 0 (car r)) (not (string-null? val))))
+                     (format #t "[op-items-provision] download ~a failed (~a)~%"
+                             rel (car r)))
+                    ((eq? decode 'base64)
+                     (if (base64-decode-to-file val dest)
+                         (begin (chmod dest mode)
+                                (format #t "[op-items-provision] downloaded+decoded ~a~%" rel))
+                         (format #t "[op-items-provision] base64 decode failed for ~a~%" rel)))
+                    (else
                      (call-with-output-file dest
                        (lambda (p) (display val p)))
                      (chmod dest mode)
-                     (format #t "[op-items-provision] downloaded ~a~%" rel))
-                    (else
-                     (format #t "[op-items-provision] download ~a failed (~a)~%" rel (car r))))))))
+                     (format #t "[op-items-provision] downloaded ~a~%" rel)))))))
            ;; Short-circuit: if every destination already exists, skip the
            ;; signin prompt entirely.  We only need op (and the master
            ;; password) when there's something to fetch.
