@@ -1,0 +1,18 @@
+# Custom keybindings for lazygit inside the grs layout.
+# `e` (files / commit-files context) sends the hovered file to the kak
+# session started by kak-listen.sh (grs-edit tab), then switches to the
+# edit tab AND focuses the editor pane via focus-editor.sh.  If grs-edit
+# isn't open, kak-edit.sh returns non-zero and the focus step is skipped.
+customCommands:
+  - key: 'e'
+    context: 'files'
+    description: 'Edit in kak (grs)'
+    command: 'bash ~/.config/zellij/scripts/kak-edit.sh "$(pwd)/{{.SelectedFile.Name}}" && bash ~/.config/zellij/scripts/focus-editor.sh'
+    subprocess: false
+    output: log
+  - key: 'e'
+    context: 'commitFiles'
+    description: 'Edit in kak (grs)'
+    command: 'bash ~/.config/zellij/scripts/kak-edit.sh "$(pwd)/{{.SelectedCommitFile.Name}}" && bash ~/.config/zellij/scripts/focus-editor.sh'
+    subprocess: false
+    output: log

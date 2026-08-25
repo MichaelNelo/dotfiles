@@ -1,0 +1,34 @@
+// edit — standalone tab: kak-listen + shell + yazi-neotree.
+// Launch:  zellij action new-tab --layout ~/.config/zellij/layouts/edit.kdl
+// kak-listen.sh writes $GRS_NVR_POINTER so both yazi-current (in the
+// explore layout) and yazi-neotree (here) can send `edit <file>` via
+// kak-edit.sh.
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="tab-bar";
+        }
+        children;
+        pane size=1 borderless=true {
+            plugin location="zjstatus";
+        }
+    }
+
+    tab name="edit" focus=true {
+        pane split_direction="vertical" {
+            pane size="70%" split_direction="horizontal" {
+                pane size="80%" name="editor" focus=true {
+                    command "bash";
+                    args "/home/mknelo/.config/zellij/scripts/kak-listen.sh";
+                }
+                pane size="20%" name="shell" {
+                    command "nu";
+                }
+            }
+            pane size="30%" name="yazi-neotree" {
+                command "bash";
+                args "/home/mknelo/.config/zellij/scripts/yazi-neotree.sh";
+            }
+        }
+    }
+}

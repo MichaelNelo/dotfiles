@@ -1,11 +1,9 @@
--- yazi-current (id 1001): re-emits local hover/cd to yazi-preview (1002)
--- with custom kinds. This lets yazi-preview filter and react ONLY to this
--- sender, ignoring yazi-neotree (id 1003).
+-- yazi-current (id 1001): user-driven navigator in grs-explore.
+-- Hover → publish to preview (1002) for cursor tracking.
+-- cd    → fan out via yazi-cd-sync.sh (ya emit-to siblings + kak + lazygit).
 
-local fifo = os.getenv("GRS_CWD_FIFO")
 local tag = os.getenv("GRS_DDS_TAG") or "default"
 local hover_kind = "grs-hover-" .. tag
-local cd_kind = "grs-cd-" .. tag
 
 ps.sub("hover", function(_)
     local h = cx.active.current.hovered
@@ -16,11 +14,8 @@ end)
 
 ps.sub("cd", function(_)
     local cwd = cx.active.current.cwd
-    if cwd then
-        local url = tostring(cwd)
-        ps.pub_to(1002, cd_kind, { url = url })
-        if fifo and #fifo > 0 then
-            os.execute(string.format("printf '%%s\\n' %q >> %q &", url, fifo))
-        end
-    end
+    if not cwd then return end
+    os.execute(string.format(
+        "bash ~/.config/zellij/scripts/yazi-cd-sync.sh %q 1001 &",
+        tostring(cwd)))
 end)

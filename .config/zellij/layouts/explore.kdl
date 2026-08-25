@@ -1,3 +1,7 @@
+// explore — standalone tab: yazi-current + yazi-preview (locked) + lazygit.
+// Launch:  zellij action new-tab --layout ~/.config/zellij/layouts/explore.kdl
+// yazi-current publishes cd events; if an `edit` tab exists, yazi-cd-sync
+// forwards them to kak and lazygit-follow.
 layout {
     default_tab_template {
         pane size=1 borderless=true {
@@ -24,24 +28,6 @@ layout {
             pane size="70%" name="lazygit" {
                 command "bash";
                 args "/home/mknelo/.config/zellij/scripts/lazygit-follow.sh";
-            }
-        }
-    }
-
-    tab name="edit" {
-        pane split_direction="vertical" {
-            pane size="70%" split_direction="horizontal" {
-                pane size="80%" name="editor" {
-                    command "bash";
-                    args "/home/mknelo/.config/zellij/scripts/kak-listen.sh";
-                }
-                pane size="20%" name="shell" {
-                    command "nu";
-                }
-            }
-            pane size="30%" name="yazi-neotree" {
-                command "bash";
-                args "/home/mknelo/.config/zellij/scripts/yazi-neotree.sh";
             }
         }
     }
