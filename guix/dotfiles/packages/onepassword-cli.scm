@@ -7,7 +7,8 @@
   #:use-module (guix gexp)
   #:use-module (guix build-system copy)
   #:use-module (nonguix licenses)
-  #:use-module (gnu packages compression))
+  #:use-module (gnu packages compression)
+  #:export (onepassword-cli))
 
 (define-public onepassword-cli
   (package
@@ -32,3 +33,5 @@ sign in to your 1Password account, manage items in your vaults,
 provision team members, groups, and vaults, and automate your secrets
 workflows.")
     (license (nonfree "https://1password.com/legal/terms-of-service/"))))
+
+onepassword-cli

@@ -22,9 +22,17 @@
   #:use-module (gnu packages containers)
   #:use-module ((gnu packages dns) #:select (isc-bind))  ;bind:utils for dig/host/nslookup
   #:use-module (dotfiles packages omz)
+  #:use-module (dotfiles packages oh-my-posh)
   #:use-module (dotfiles packages fzfcolored)
   #:use-module (dotfiles packages claude-code)
   #:use-module (dotfiles packages jadx)
+  #:use-module (dotfiles packages piknik)
+  #:use-module (dotfiles packages onepassword-cli)
+  #:use-module (dotfiles packages zellij)
+  #:use-module (dotfiles packages yazi)
+  #:use-module (dotfiles packages kakoune-lsp)
+  #:use-module (dotfiles packages lazygit)
+  #:use-module (gnu packages file)                ;file(1) — MIME detection for yazi
   #:use-module (dotfiles packages micro-plugins lsp)
   #:use-module (dotfiles packages micro-plugins autofmt)
   #:use-module (dotfiles packages micro-plugins fzf)
@@ -60,6 +68,15 @@
         git-crypt
         `(,isc-bind "utils")   ;dig, host, nslookup — DNS diagnostics
         jadx                   ;dex→java decompiler (Android APKs) — brings openjdk21 too
+        piknik                 ;E2E-encrypted clipboard relay
+        onepassword-cli        ;`op` — 1Password CLI (nonguix)
+        oh-my-posh             ;prompt renderer (sourced from nushell config.nu)
+        zellij                 ;terminal multiplexer (plugins wired in home.scm)
+        yazi                   ;terminal file manager
+        file                   ;used by yazi for file-type detection on open
+        kakoune                ;modal text editor
+        kakoune-lsp            ;LSP client for kakoune (`kak-lsp`)
+        lazygit                ;grs layout `lazygit-follow.sh` needs this on PATH
         claude-code))
 
 ;; Additional packages for development/testing environments
