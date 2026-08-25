@@ -102,6 +102,10 @@ $env.PATH = ($env.PATH | split row (char esep) | prepend [
   $\"($env.HOME)/.config/guix/current/bin\"
   $\"($env.HOME)/.guix-home/profile/bin\"
   $\"($env.HOME)/.guix-home/profile/sbin\"
+  # Setuid wrappers (sudo, ping, mount, …) — must precede
+  # /run/current-system/profile/bin, whose sudo lacks the setuid bit.
+  \"/run/privileged/bin\"
+  \"/run/setuid-programs\"
   \"/run/current-system/profile/bin\"
   \"/run/current-system/profile/sbin\"
   $\"($env.HOME)/.nix-profile/bin\"
