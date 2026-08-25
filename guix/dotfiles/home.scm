@@ -268,40 +268,6 @@ try { ssh-load-keys }
         (chmod parts #o700))))
 
 ;; ========================================
-;; DEVENV
-;; ========================================
-
-;; Pin devenv by commit.  Bump the SHA and reconfigure to upgrade.
-(define %devenv-flake-ref
-  "github:cachix/devenv/ea3d94a")           ;v2.1.2 (2025-05-13)
-
-;; Build the devenv flake once and symlink its binary into ~/.local/bin.
-;; Guarded on both `nix` being on PATH and the daemon socket being up so
-;; systems without the nix-service-type just no-op.
-(define %devenv-install-service
-  (simple-service 'devenv-install home-activation-service-type
-    #~(let* ((nix    "/run/current-system/profile/bin/nix")
-             (home   (getenv "HOME"))
-             (state  (string-append home "/.local/state/devenv"))
-             (bindir (string-append home "/.local/bin"))
-             (link   (string-append state "/result"))
-             (target (string-append link "/bin/devenv"))
-             (alias  (string-append bindir "/devenv")))
-        (when (and (file-exists? nix)
-                   (file-exists? "/nix/var/nix/daemon-socket/socket"))
-          (mkdir-p state)
-          (mkdir-p bindir)
-          (format #t "[devenv] sync ~a~%" #$%devenv-flake-ref)
-          (system* nix "build" "--no-link"
-                   "--out-link" link
-                   "--accept-flake-config"
-                   #$%devenv-flake-ref)
-          (when (file-exists? target)
-            (when (file-exists? alias)
-              (delete-file alias))
-            (symlink target alias))))))
-
-;; ========================================
 ;; 1PASSWORD-PROVISIONED SECRETS
 ;; ========================================
 
@@ -341,7 +307,6 @@ try { ssh-load-keys }
       %ssh-service
       %ssh-agent-shepherd-service
       %nushell-service
-      %devenv-install-service
       ;; Piknik: dirs first, then server, then provisioning (needs op).
       %piknik-dirs-service
       %piknik-server-service
