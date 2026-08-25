@@ -47,7 +47,9 @@
   (program-file
    "op-agent-daemon"
    #~(begin
-       (use-modules (ice-9 rdelim) (ice-9 textual-ports))
+       (use-modules (ice-9 rdelim) (ice-9 textual-ports)
+                    (ice-9 regex)
+                    (srfi srfi-1) (srfi srfi-13))
 
        (define op-bin #$(file-append onepassword-cli "/bin/op"))
        (define shorthand "my")
@@ -60,35 +62,16 @@
                             (string-append (getenv "HOME") "/.local/state"))
                         "/op-agent.sock"))
 
-       ;; Fork op with a specific OP_SESSION_my in env; return (exit-code . stdout).
-       ;; Used to test the current token via `op whoami`.
-       (define (op-with-token token args)
-         (let* ((out-pipe (pipe))
-                (out-r (car out-pipe))
-                (out-w (cdr out-pipe))
-                (pid   (primitive-fork)))
-           (cond
-            ((zero? pid)
-             (close-port out-r)
-             (setenv "OP_SESSION_my" token)
-             (dup2 (fileno out-w) 1)
-             (dup2 (fileno out-w) 2)
-             (close-port out-w)
-             (apply execl op-bin "op" args))
-            (else
-             (close-port out-w)
-             (let* ((out (get-string-all out-r))
-                    (ec  (status:exit-val (cdr (waitpid pid)))))
-               (close-port out-r)
-               (cons ec out))))))
+       (define (log fmt . args)
+         (apply format #t fmt args)
+         (newline)
+         (force-output))
 
-       (define (session-valid?)
-         (and *token*
-              (zero? (car (op-with-token *token* '("whoami"))))))
-
-       ;; Run `op signin --account SHORTHAND --raw`, feeding MASTER-PW on
-       ;; stdin.  Returns the trimmed token on success, #f on failure.
-       (define (do-signin master-pw)
+       ;; General-purpose op runner.  Forks op with ARGS, feeds STDIN-TEXT
+       ;; (empty string = nothing) + newline on stdin, sets ENV-EXTRAS
+       ;; (list of (KEY . VALUE) pairs) in the child's env.  Returns
+       ;; (exit-code . stdout+stderr-string).
+       (define (op-run args stdin-text env-extras)
          (let* ((in-pipe  (pipe))
                 (out-pipe (pipe))
                 (in-r     (car in-pipe))
@@ -102,21 +85,112 @@
              (close-port out-r)
              (dup2 (fileno in-r)  0)
              (dup2 (fileno out-w) 1)
+             (dup2 (fileno out-w) 2)
              (close-port in-r)
              (close-port out-w)
-             (execl op-bin "op" "signin" "--account" shorthand "--raw"))
+             (for-each (lambda (kv) (setenv (car kv) (cdr kv))) env-extras)
+             (apply execl op-bin "op" args))
             (else
              (close-port in-r)
              (close-port out-w)
-             (display master-pw in-w)
-             (newline  in-w)
+             (unless (string-null? stdin-text)
+               (display stdin-text in-w)
+               (newline in-w))
              (close-port in-w)
-             (let* ((tok (string-trim-right (get-string-all out-r)))
+             (let* ((out (get-string-all out-r))
                     (ec  (status:exit-val (cdr (waitpid pid)))))
                (close-port out-r)
-               (and (zero? ec)
-                    (not (string-null? tok))
-                    tok))))))
+               (cons ec out))))))
+
+       (define (op-with-token token args)
+         (op-run args "" (list (cons "OP_SESSION_my" token))))
+
+       (define (session-valid?)
+         (and *token*
+              (zero? (car (op-with-token *token* '("whoami"))))))
+
+       ;; Is our shorthand already in `op account list`?
+       (define (account-registered?)
+         (let ((res (op-run '("account" "list") "" '())))
+           (and (zero? (car res))
+                (string-contains (cdr res) shorthand))))
+
+       ;; Parse ~/.config/op/account-info (address=…, email=…, secret_key=…).
+       (define (parse-account-info)
+         (let ((path (string-append (getenv "HOME") "/.config/op/account-info")))
+           (and (file-exists? path)
+                (filter-map
+                 (lambda (line)
+                   (let ((m (string-match "^([a-z_]+)=(.+)$" line)))
+                     (and m (cons (match:substring m 1)
+                                  (match:substring m 2)))))
+                 (string-split
+                  (call-with-input-file path get-string-all)
+                  #\newline)))))
+
+       ;; If shorthand isn't registered locally, register it via `op
+       ;; account add` using account-info + OP_SECRET_KEY and MASTER-PW
+       ;; on stdin.  #t on success (or already-registered), #f on any
+       ;; failure (logged to shepherd log).
+       (define (ensure-account-registered master-pw)
+         (cond
+          ((account-registered?) #t)
+          (else
+           (let ((kv (parse-account-info)))
+             (cond
+              ((not kv)
+               (log "op-agent: ~~/.config/op/account-info missing; can't register")
+               #f)
+              (else
+               (let ((addr (assoc-ref kv "address"))
+                     (mail (assoc-ref kv "email"))
+                     (sk   (assoc-ref kv "secret_key")))
+                 (cond
+                  ((not (and addr mail sk))
+                   (log "op-agent: account-info missing address/email/secret_key")
+                   #f)
+                  (else
+                   (log "op-agent: registering account ~a via op account add…" shorthand)
+                   (let* ((res (op-run
+                                (list "account" "add"
+                                      "--address" addr
+                                      "--email" mail
+                                      "--shorthand" shorthand)
+                                master-pw
+                                (list (cons "OP_SECRET_KEY" sk))))
+                          (ec  (car res)))
+                     (cond
+                      ((zero? ec)
+                       (log "op-agent: account ~a registered" shorthand)
+                       #t)
+                      (else
+                       (log "op-agent: op account add failed (ec=~a):" ec)
+                       (log "  ~a" (cdr res))
+                       #f))))))))))))
+
+       ;; Register account if needed, then run `op signin --account
+       ;; SHORTHAND --raw` with MASTER-PW on stdin.  Returns the
+       ;; trimmed session token on success, #f on failure.
+       (define (do-signin master-pw)
+         (cond
+          ((not (ensure-account-registered master-pw))
+           #f)
+          (else
+           (let* ((res (op-run (list "signin" "--account" shorthand "--raw")
+                               master-pw '()))
+                  (ec  (car res)))
+             (cond
+              ((zero? ec)
+               (let ((tok (string-trim-right (cdr res))))
+                 (cond
+                  ((not (string-null? tok)) tok)
+                  (else
+                   (log "op-agent: op signin returned empty token")
+                   #f))))
+              (else
+               (log "op-agent: op signin failed (ec=~a):" ec)
+               (log "  ~a" (cdr res))
+               #f))))))
 
        (define (send client s)
          (display s client)
