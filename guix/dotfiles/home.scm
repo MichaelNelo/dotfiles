@@ -13,6 +13,7 @@
   #:use-module (dotfiles services ssh)
   #:use-module (dotfiles services nushell)
   #:use-module (dotfiles services op)
+  #:use-module (dotfiles services op-agent)
   #:use-module (dotfiles services piknik)
   #:use-module (gnu packages rust-apps)   ;zoxide
   #:use-module (gnu packages ssh)         ;openssh (ssh-agent shepherd)
@@ -169,6 +170,25 @@ def ssh-load-keys [] {
 # protected key prompts once; subsequent shells reuse the agent because
 # ssh-load-keys skips keys whose fingerprint is already loaded.
 try { ssh-load-keys }
+
+# op-agent: if the 1Password session daemon has a live token, export
+# OP_SESSION_my so `op`, `guix home reconfigure`, and every child
+# process inherit it without a per-shell prompt.  Silent no-op if the
+# agent daemon isn't up yet or the session is locked.
+try {
+    let out = (^op-agent env | complete)
+    if $out.exit_code == 0 and (($out.stdout | str trim) != '') {
+        $out.stdout
+        | lines
+        | each { |l|
+            let kv = ($l | split row -n 2 '=')
+            if ($kv | length) == 2 {
+                load-env { ($kv | get 0): ($kv | get 1) }
+            }
+          }
+        | ignore
+    }
+}
 ")))
 
 ;; ========================================
@@ -312,6 +332,8 @@ try { ssh-load-keys }
       %dotfiles-service
       %ssh-service
       %ssh-agent-shepherd-service
+      %op-agent-service
+      %op-agent-install-service
       %nushell-service
       ;; Piknik: dirs first, then server, then provisioning (needs op).
       %piknik-dirs-service
