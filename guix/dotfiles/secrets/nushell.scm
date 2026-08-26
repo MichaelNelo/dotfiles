@@ -30,8 +30,10 @@
 ;; Helpers
 ;; ================
 
+;; chmod(1) accepts bare octal digits ("600"), not nushell's "0o600"
+;; literal syntax — we're calling external `^chmod` / `^sudo chmod`.
 (define (mode->nushell mode)
-  (format #f "0o~o" mode))
+  (format #f "~o" mode))
 
 ;; The write-body: takes a nushell expression that evaluates to the
 ;; bytes to save, plus mode/owner semantics from the record.
