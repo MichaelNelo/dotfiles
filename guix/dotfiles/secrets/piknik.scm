@@ -60,7 +60,7 @@
          (name       (secret-name secret)))
     (format #f
             "        # Ensure the 1P item exists (generate + upload if missing).
-        let __item_exists = (^op item get '~a' --vault '~a' out+err> /dev/null | complete)
+        let __item_exists = (^op item get '~a' --vault '~a' | complete)
         let __item_ready = if $__item_exists.exit_code == 0 { true } else {
 ~a
         }
