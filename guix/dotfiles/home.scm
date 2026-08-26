@@ -233,6 +233,18 @@ try {
            (type 'base64)
            (source
             "op://Personal/DOTFILES GIT-CRYPT KEY/notesPlain"))
+   ;; Same 1P item as eva-personal-ssh above, but landed at the guix
+   ;; offload location: root-owned so guix-daemon (running as root)
+   ;; can read it, mode 0600 because OpenSSH/libssh reject anything
+   ;; wider on a private key.  owner="root:root" makes the nushell
+   ;; provisioner use `sudo tee`/`sudo chmod`/`sudo chown` under the
+   ;; hood.
+   (secret (name "offload-ssh-key")
+           (path "/etc/guix/offload/personal.server.id_rsa")
+           (type 'raw)
+           (source
+            "op://Personal/LOCAL SSH CLIENT KEY/private key?ssh-format=openssh")
+           (owner "root:root"))
    ;; Piknik keyset — same record used by piknik-server's wait-loop
    ;; (see dotfiles/services/piknik.scm).  on-missing='generate = the
    ;; provisioner runs `piknik -genkeys` and uploads to 1P if the item
