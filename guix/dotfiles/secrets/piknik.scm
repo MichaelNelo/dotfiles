@@ -91,7 +91,7 @@ EncryptSk = \"($__by_field.EncryptSk)\"
             (if (eq? on-missing 'generate)
                 (piknik-generate-and-upload item vault name)
                 (format #f
-                        "            print $'[secret ~a] 1P item ~a missing (on-missing=error); skipping.'
+                        "            print $'[secret ~a] 1P item ~a missing - on-missing=error, skipping.'
             false"
                         name item))
             (string-join fields ",")

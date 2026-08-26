@@ -48,7 +48,7 @@
 ~a~a | ^sudo tee $path out+err> /dev/null
 ~a^sudo chmod ~a $path
 ~a^sudo chown ~a $path
-~aprint $'[secret ~a] wrote ($path) (~a)'"
+~aprint $'[secret ~a] wrote ($path) as ~a'"
                 indent
                 indent (car (string-split owner #\:)) (cadr (string-split owner #\:))
                 indent value-expr
@@ -75,7 +75,7 @@
        (format #f
                "        let val = (^op read '~a' | complete)
         if $val.exit_code != 0 or ($val.stdout | is-empty) {
-            print $'[secret ~a] op read failed (~~($val.exit_code))'
+            print $'[secret ~a] op read failed - exit ($val.exit_code)'
         } else {
 ~a
         }"
@@ -85,7 +85,7 @@
        (format #f
                "        let b64 = (^op read '~a' | complete)
         if $b64.exit_code != 0 or ($b64.stdout | is-empty) {
-            print $'[secret ~a] op read failed (~~($b64.exit_code))'
+            print $'[secret ~a] op read failed - exit ($b64.exit_code)'
         } else {
             let decoded = ($b64.stdout | ^base64 -d | complete | get stdout)
 ~a
