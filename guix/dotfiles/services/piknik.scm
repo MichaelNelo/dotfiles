@@ -5,8 +5,21 @@
   #:use-module (guix gexp)
   #:use-module (dotfiles packages piknik)
   #:use-module (dotfiles packages onepassword-cli)
+  #:use-module (dotfiles secrets)
   #:export (%piknik-server-service
+            %piknik-toml-secret
             make-piknik-provision-service))
+
+;; Canonical piknik secret.  The nushell provisioner (in home.scm's
+;; %secrets) reads/generates the 1P item and assembles ~/.piknik.toml;
+;; the shepherd server below waits for that same path via
+;; secret->wait-loop-gexp.  Same declaration → one source of truth.
+(define %piknik-toml-secret
+  (secret (name "piknik-keyset")
+          (path "~/.piknik.toml")
+          (type 'piknik-keyset)
+          (source (piknik-source (vault "Personal") (item "Piknik")))
+          (on-missing 'generate)))
 
 ;; One-shot activation: ensures the piknik keyset exists in 1Password,
 ;; downloads each field to ~/.piknik.parts/, and assembles ~/.piknik.toml.
@@ -175,34 +188,39 @@
   (simple-service 'piknik-provision home-activation-service-type
                   #~(system* #$script)))
 
-;; Home Shepherd service for `piknik -server`.
+;; Piknik server launcher: polls for %piknik-toml-secret's file via the
+;; secret's own wait-loop, then execs `piknik -server` in place.
+;; Shepherd sees this wrapper as the service process; on piknik exit,
+;; respawn restarts the wrapper and it re-polls.
 ;;
-;; Guards against missing ~/.piknik.toml: if the config file doesn't exist
-;; yet, the start procedure returns #f (Shepherd marks the service as
-;; "stopped" instead of entering a respawn loop).
+;; Consequence: any provisioner (nushell at login, wsl-bootstrap, home
+;; activation) can drop ~/.piknik.toml at any time and the server
+;; picks it up on the next poll — no `sudo herd start` required.
+(define piknik-server-wrapper
+  (program-file
+   "piknik-server-wrapper"
+   #~(begin
+       #$(secret->wait-loop-gexp %piknik-toml-secret)
+       (execl #$(file-append piknik "/bin/piknik") "piknik" "-server"))))
+
+;; Home Shepherd service for `piknik -server`, via the wrapper above.
 (define %piknik-server-service
   (simple-service 'piknik-server
                   home-shepherd-service-type
                   (list
                    (shepherd-service
                     (provision '(piknik-server))
-                    (documentation "Piknik server (clipboard relay).")
+                    (documentation "Piknik server (waits for ~/.piknik.toml).")
                     (auto-start? #t)
                     (respawn? #t)
                     (start
                      #~(lambda args
-                         (let* ((home (getenv "HOME"))
-                                (toml (string-append home "/.piknik.toml"))
+                         (let* ((home (passwd:dir (getpwuid (getuid))))
                                 (state (or (getenv "XDG_STATE_HOME")
                                            (string-append home "/.local/state")))
                                 (log (string-append state "/log/piknik-server.log")))
-                           (if (file-exists? toml)
-                               (apply (make-forkexec-constructor
-                                       (list #$(file-append piknik "/bin/piknik")
-                                             "-server")
-                                       #:log-file log)
-                                      args)
-                               (begin
-                                 (format #t "[piknik-server] ~a missing, not starting~%" toml)
-                                 #f)))))
+                           (apply (make-forkexec-constructor
+                                   (list #$piknik-server-wrapper)
+                                   #:log-file log)
+                                  args))))
                     (stop #~(make-kill-destructor))))))

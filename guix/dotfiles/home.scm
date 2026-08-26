@@ -15,10 +15,12 @@
   #:use-module (dotfiles services op)
   #:use-module (dotfiles services op-agent)
   #:use-module (dotfiles services piknik)
+  #:use-module (dotfiles secrets)
   #:use-module (gnu packages rust-apps)   ;zoxide
   #:use-module (gnu packages ssh)         ;openssh (ssh-agent shepherd)
   #:use-module (guix gexp)
-  #:export (dotfiles-home-environment))
+  #:export (dotfiles-home-environment
+            %secrets))
 
 ;; ========================================
 ;; GUIX CHANNELS
@@ -193,9 +195,56 @@ try {
 
 ;; oh-my-posh init must be the last line of config.nu (per upstream docs).
 ;; Requires nushell >= 0.104.0.
+;; ========================================
+;; 1PASSWORD-BACKED SECRETS
+;; ========================================
+
+;; Declarative <secret> records — each drives BOTH a nushell provisioner
+;; (in config.nu, invoked at every login via provision-all-secrets) AND
+;; can be waited on by a shepherd service via secret->wait-loop-gexp
+;; (as %piknik-toml-secret does for piknik-server).
+;;
+;; No home-activation service in the list — provisioning happens at
+;; shell start, silently no-op when op-agent is locked and when files
+;; are already in place.  Reconfigure stays fast (no signin prompt).
+(define %secrets
+  (list
+   (secret (name "personal-github-ssh")
+           (path "~/.ssh/personal.github.id_ed25519")
+           (type 'raw)
+           (source
+            "op://Personal/PERSONAL GITHUB SSH/private key?ssh-format=openssh"))
+   (secret (name "eva-personal-ssh")
+           (path "~/.ssh/eva.personal.id_dropbear")
+           (type 'raw)
+           (source
+            "op://Personal/LOCAL SSH CLIENT KEY/private key?ssh-format=openssh"))
+   (secret (name "codeberg-ssh")
+           (path "~/.ssh/codeberg.id_ed25519")
+           (type 'raw)
+           (source
+            "op://Personal/CODEBERG SSH KEY/private key?ssh-format=openssh"))
+   ;; git-crypt symmetric key for the dotfiles repo — stored in 1P as
+   ;; a base64-encoded Secure Note (default field `notesPlain`).  Used
+   ;; via `git-crypt unlock ~/.config/git/dotfiles/git-crypt.key` in a
+   ;; fresh clone.
+   (secret (name "dotfiles-git-crypt")
+           (path "~/.config/git/dotfiles/git-crypt.key")
+           (type 'base64)
+           (source
+            "op://Personal/DOTFILES GIT-CRYPT KEY/notesPlain"))
+   ;; Piknik keyset — same record used by piknik-server's wait-loop
+   ;; (see dotfiles/services/piknik.scm).  on-missing='generate = the
+   ;; provisioner runs `piknik -genkeys` and uploads to 1P if the item
+   ;; doesn't exist yet on this account.
+   %piknik-toml-secret))
+
 (define %nushell-config-nu
   (append
    %op-nushell-config
+   ;; Secret provisioners: def provision-<name> and provision-all-secrets.
+   ;; Loaded in every shell (config.nu), called from login.nu only.
+   (list (secrets->nushell-config %secrets))
    (list (mixed-text-file
           "oh-my-posh-init.nu"
           "oh-my-posh init nu --config "
@@ -224,6 +273,11 @@ if ($hook | path exists) {
     let log = $\"($env.XDG_RUNTIME_DIR)/on-first-login.log\"
     try { ^$hook out+err> $log }
 }
+
+# Provision 1P-backed secrets that aren't on disk yet.  Cheap when
+# everything is in place (single `path exists` check per secret);
+# silent no-op when op-agent is locked.
+try { provision-all-secrets }
 ")))
 
 ;; Aliases with spaces are emitted as `def NAME [] { … }` by the nushell
@@ -314,27 +368,8 @@ if ($hook | path exists) {
         (mkdir-p parts)
         (chmod parts #o700))))
 
-;; ========================================
-;; 1PASSWORD-PROVISIONED SECRETS
-;; ========================================
-
-;; Secrets downloaded by make-op-items-provision-service on activation.
-;; Tuple: (op-URI dest-rel-to-$HOME mode [decode]).
-;; `decode` is 'raw (default) or 'base64.  Idempotent: existing files
-;; skip the op read.
-(define %op-provisioned-items
-  '(("op://Personal/PERSONAL GITHUB SSH/private key?ssh-format=openssh"
-     ".ssh/personal.github.id_ed25519" #o600)
-    ("op://Personal/LOCAL SSH CLIENT KEY/private key?ssh-format=openssh"
-     ".ssh/eva.personal.id_dropbear" #o600)
-    ("op://Personal/CODEBERG SSH KEY/private key?ssh-format=openssh"
-     ".ssh/codeberg.id_ed25519" #o600)
-    ;; git-crypt symmetric key for the dotfiles repo — stored in 1P as
-    ;; a base64-encoded Secure Note (default field `notesPlain`).  Used
-    ;; via `git-crypt unlock ~/.config/git/dotfiles/git-crypt.key` in a
-    ;; fresh clone.
-    ("op://Personal/DOTFILES GIT-CRYPT KEY/notesPlain"
-     ".config/git/dotfiles/git-crypt.key" #o600 base64)))
+;; %secrets was moved before %nushell-config-nu (which references it).
+;; See earlier in the file for the actual definition.
 
 ;; ========================================
 ;; COMPOSE HOME ENVIRONMENT
@@ -359,13 +394,10 @@ if ($hook | path exists) {
       ;; Piknik: dirs first, then server, then provisioning (needs op).
       %piknik-dirs-service
       %piknik-server-service
-      (make-piknik-provision-service
-       #:listen %piknik-listen
-       #:connect %piknik-connect)
-      ;; Secrets provisioned from 1Password (SSH keys, see %op-provisioned-items).
-      (make-op-items-provision-service
-       #:package onepassword-cli
-       #:items %op-provisioned-items)
+      ;; Secret provisioning happens at nushell login via provision-
+      ;; all-secrets (see %nushell-login-nu + %secrets), not through
+      ;; home-activation.  Reconfigure stays fast (no op signin
+      ;; prompts), and provisioning doesn't wait for a `guix pull`.
       ;; op-account-add MUST be last in the services list so it runs FIRST
       ;; during home activation (Guix runs activation gexps in reverse list
       ;; order).  Account must be registered before provisioners sign in.
