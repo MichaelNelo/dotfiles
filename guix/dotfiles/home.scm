@@ -207,12 +207,22 @@ try {
 ;; Bash's /etc/profile does this for bash logins; nushell needs the explicit
 ;; call.  The script is idempotent (flag file in $XDG_RUNTIME_DIR, tmpfs), so
 ;; it no-ops on subsequent nushell logins within the same boot.
+;;
+;; CRITICAL: redirect the hook's stdout+stderr to a file (NOT `| complete`).
+;; on-first-login fork+exec's the user Shepherd as a background daemon; that
+;; daemon inherits the parent's fd 1/2.  If those fds are a pipe (as `|
+;; complete` sets up), Shepherd keeps the write end open forever, so
+;; nushell's `complete` never sees EOF and blocks the whole login on `read()`
+;; — the visible symptom is Terminal A stuck with a blank screen after first
+;; boot even though `nu -l` is alive and foregrounded.  Piping to a plain
+;; file avoids the pipe entirely; Shepherd inherits the file fd, no EOF race.
 (define %nushell-login-nu
   (list (plain-file
          "guix-home-first-login.nu"
          "let hook = $\"($env.HOME)/.guix-home/on-first-login\"
 if ($hook | path exists) {
-    try { ^$hook | complete | ignore }
+    let log = $\"($env.XDG_RUNTIME_DIR)/on-first-login.log\"
+    try { ^$hook out+err> $log }
 }
 ")))
 
