@@ -31,13 +31,52 @@
 ;; Common nushell blocks
 ;; ================
 
-;; Guard: skip silently if op-agent is locked.  Keeps shell startup
-;; fast and non-interactive on already-provisioned boxes.
+;; Preamble emitted once at the top of secrets-provisioners.nu.
+;;
+;; op-agent-ensure-session: load OP_SESSION_my from the daemon into
+;; THIS shell's env; if the daemon has no session, prompt master
+;; password once via `op-agent unlock` and load again.  Idempotent:
+;; subsequent calls in the same shell hit the "has session" path and
+;; don't prompt, because op-agent daemon caches the session in RAM
+;; after first unlock.
+;;
+;; `def --env` propagates load-env to the caller's scope, so a
+;; provision-<name> that calls this helper sees OP_SESSION_my in its
+;; own env and the `op read` subprocess inherits it.
+(define %nushell-op-ensure-def
+  "# Preamble: helper called by every provision-<name> before op read.
+def --env op-agent-ensure-session [] {
+    let out = (^op-agent env | complete)
+    if $out.exit_code == 0 and (($out.stdout | str trim) != '') {
+        for line in ($out.stdout | lines) {
+            let kv = ($line | split row -n 2 '=')
+            if ($kv | length) == 2 {
+                load-env { ($kv | get 0): ($kv | get 1) }
+            }
+        }
+        return true
+    }
+    # No session — prompt for unlock (interactive; master password).
+    try { ^op-agent unlock } catch { return false }
+    let out2 = (^op-agent env | complete)
+    if $out2.exit_code == 0 and (($out2.stdout | str trim) != '') {
+        for line in ($out2.stdout | lines) {
+            let kv = ($line | split row -n 2 '=')
+            if ($kv | length) == 2 {
+                load-env { ($kv | get 0): ($kv | get 1) }
+            }
+        }
+        return true
+    }
+    false
+}
+")
+
+;; Guard emitted at the top of every provision-<name>: ensures the
+;; op-agent session is loaded (prompting unlock if necessary), and
+;; skips this secret if the unlock failed / was aborted.
 (define %nushell-op-unlocked-check
-  "    # Only fetch if op-agent is unlocked; otherwise silent skip.
-    let st = (^op-agent status | complete)
-    if $st.exit_code != 0 { return }
-    if not ($st.stdout | str contains 'unlocked') { return }
+  "    if not (op-agent-ensure-session) { return }
 ")
 
 ;; The write-body: takes a nushell expression that evaluates to the
@@ -128,11 +167,14 @@ def provision-~a [] {
             %nushell-op-unlocked-check
             (fetch-body secret))))
 
-;; Bundle N secrets → single nushell config file with each
-;; provision-<name> def plus a provision-all-secrets combinator.
+;; Bundle N secrets → single nushell config file with the op-agent
+;; session helper (preamble), each provision-<name> def, plus a
+;; provision-all-secrets combinator.
 (define (secrets->nushell-config secrets)
   (mixed-text-file
    "secrets-provisioners.nu"
+   %nushell-op-ensure-def
+   "\n"
    (string-join (map secret->nushell-provisioner secrets) "\n")
    "\n# Combinator: runs every provisioner in declared order.  Cheap
 # when all files exist (single `path exists` check each).
