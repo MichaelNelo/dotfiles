@@ -254,9 +254,6 @@ try {
 (define %nushell-config-nu
   (append
    %op-nushell-config
-   ;; Secret provisioners: def provision-<name> and provision-all-secrets.
-   ;; Loaded in every shell (config.nu), called from login.nu only.
-   (list (secrets->nushell-config %secrets))
    (list (mixed-text-file
           "oh-my-posh-init.nu"
           "oh-my-posh init nu --config "
@@ -285,12 +282,12 @@ if ($hook | path exists) {
     let log = $\"($env.XDG_RUNTIME_DIR)/on-first-login.log\"
     try { ^$hook out+err> $log }
 }
-
-# Provision 1P-backed secrets that aren't on disk yet.  Cheap when
-# everything is in place (single `path exists` check per secret);
-# silent no-op when op-agent is locked.
-try { provision-all-secrets }
-")))
+")
+        ;; secrets->nushell-config now emits inline provisioning code
+        ;; (op-agent ensure prelude + per-secret `do { ... }` blocks);
+        ;; concatenated into login.nu, runs on every interactive login,
+        ;; idempotent by file-existence checks.
+        (secrets->nushell-config %secrets)))
 
 ;; Aliases with spaces are emitted as `def NAME [] { … }` by the nushell
 ;; service (see serialize-nushell-aliases) — nushell's plain `alias` only
