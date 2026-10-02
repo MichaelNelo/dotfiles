@@ -10,7 +10,7 @@
   #:use-module (gnu packages base))
 
 (define version
-  "2.1.143")
+  "2.1.259")
 
 (define-public claude-code-linux-x64
   (origin
@@ -18,7 +18,7 @@
     (uri (string-append
           "https://registry.npmjs.org/@anthropic-ai/claude-code-linux-x64/-/"
           "claude-code-linux-x64-" version ".tgz"))
-    (sha256 (base32 "1165r7xqcs4vs6l613469pkiv3xvy6rhbh0r9ma4dqvhbrv21qk3"))))
+    (sha256 (base32 "1mprxfvf4wd83gmblf1wl1a1ianznjidjm7b2hyx8x1dhbg07prz"))))
 
 (define-public claude-code
   (package
@@ -32,7 +32,7 @@
              "https://registry.npmjs.org/@anthropic-ai/claude-code/-/"
              "claude-code-" version ".tgz"))
        (sha256
-        (base32 "0rji3ahx6dvfsc07281n32y44gm6bfwrazi753lcns3z3nkh7jn8"))))
+        (base32 "1g3243w0lhz68p3wwlh0ln9gjfpwai79gjb0wyvcs8nyq7j7k7jg"))))
     (native-inputs (list node bash))
     (inputs (list glibc claude-code-linux-x64))
     (arguments
