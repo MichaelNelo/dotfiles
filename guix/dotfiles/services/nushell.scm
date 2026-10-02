@@ -75,24 +75,21 @@ Produces lines like: $env.VAR = \"value\""
 
 (define (serialize-nushell-aliases field-name val)
   "Serialize ALIST of aliases to nushell syntax.
-Simple commands (no spaces) use `alias`. Complex commands use `def`."
+
+Nushell 0.104+ aliases forward trailing args when the RHS is a bare
+command (not a quoted string).  The `^` prefix forces external
+invocation, which also makes nushell skip flag validation — any flag
+the user types goes straight to the external command.  This is what
+makes `home-reconfigure --no-offload` work."
     #~(begin
         (string-append
          #$@(map
              (lambda (pair)
                (let ((key (car pair))
                      (value (cdr pair)))
-                 (cond
-                  ((not (string? value)) "")
-                  ;; Commands with spaces need `def` instead of `alias`
-                  ((string-contains value " ")
-                   #~(string-append "def " #$key " [] {"
-                                    #$(nushell-escape-string value)
-                                    "}\n"))
-                  (else
-                   #~(string-append "alias " #$key " = \""
-                                    #$(nushell-escape-string value)
-                                    "\"\n")))))
+                 (if (string? value)
+                     #~(string-append "alias " #$key " = ^" #$value "\n")
+                     "")))
              val))))
 
 (define (serialize-nushell-abbreviations field-name val)
