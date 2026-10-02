@@ -15,7 +15,7 @@
                       (user "mknelo")
                       (identity-file "~/.ssh/eva.personal.id_dropbear"))
         (openssh-host (name "local.zo.eva")
-                      (host-name "192.168.1.16")
+                      (host-name "192.168.1.7")
                       (port 2222)
                       (user "mknelo")
                       (identity-file "~/.ssh/eva.personal.id_dropbear"))))
