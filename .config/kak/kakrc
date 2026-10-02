@@ -1,17 +1,245 @@
 eval %sh{kak-lsp}
 lsp-enable
 
-# LSP servers (global). NOTE: replaces the kak-lsp defaults entirely —
-# add other languages to this same block as needed.
-set-option global lsp_servers %{
-    [serve-d]
-    root_globs = [".git", "dub.sdl", "dub.json"]
-    filetypes = ["d"]
-    settings_section = "d"
-    [serve-d.settings.d]
+# kak-tree-sitter: boots the daemon (-d) in server mode (-s), logs to kak's
+# *debug* buffer (-k), and initializes THIS session with hooks + faces
+# (--init).  Must come BEFORE `colorscheme` — otherwise faces conflict.
+# Runtime grammars + queries are installed declaratively at
+# ~/.local/share/kak-tree-sitter/runtime/ by the home service in
+# dotfiles/guix/dotfiles/services/kak-tree-sitter.scm; ktsctl is available
+# on PATH for manual grammar sync but should not be needed.
+eval %sh{ kak-tree-sitter -dks --init $kak_session }
+
+# night-owl: tree-sitter-aware colorscheme from
+# git.sr.ht/~hadronized/kakoune-tree-sitter-themes.  Installed system-wide via
+# the `kakoune-tree-sitter-themes` package (see dotfiles/guix/dotfiles/
+# packages/kakoune-tree-sitter-themes.scm).  Must come AFTER the
+# kak-tree-sitter --init above so the `ts_*` faces this scheme sets don't
+# clash with --init's face injection.
+colorscheme catppuccin_macchiato
+
+# catppuccin_macchiato covers 75 ts_* faces (vs night-owl's 48) but a handful
+# of common ones fall through to `default` or to `overlay1` (nearly invisible
+# on the background).  Fill the gaps with palette colors:
+#
+# - ts_include: catppuccin doesn't define it, kts init keeps default → invisible.
+#   Covers `import`/`export` in scala, `use` in rust, etc.
+# - ts_boolean: same issue.  Editorconfig uses it for true/false/off.
+# - ts_number: not defined by catppuccin.  Editorconfig uses it for 2/120/etc.
+# - ts_character_special: wildcards like `*` in editorconfig `[*.md]` headers.
+# - ts_punctuation_bracket: catppuccin inherits from ts_punctuation which is
+#   overlay1 (barely visible).  Editorconfig headers `[...]` blend in.
+set-face global ts_include            rgb:c6a0f6
+set-face global ts_boolean            rgb:c6a0f6
+set-face global ts_number             rgb:f5a97f
+set-face global ts_character_special  rgb:f5a97f
+set-face global ts_punctuation_bracket rgb:8aadf4
+
+# Short-form face aliases — grammars using legacy names (@conditional,
+# @exception, etc.) need these mapped to the hierarchical faces that
+# catppuccin_macchiato covers.  Kts's `--init` sets each ts_* face to
+# `default` at startup; we override to inherit from the hierarchical
+# equivalent so the palette applies transparently.
+set-face global ts_conditional        ts_keyword_control_conditional
+set-face global ts_exception          ts_keyword_control_exception
+set-face global ts_repeat             ts_keyword_control_repeat
+set-face global ts_function_call      ts_function
+set-face global ts_method             ts_function_method
+set-face global ts_method_call        ts_function_method
+set-face global ts_parameter          ts_variable_parameter
+set-face global ts_float              ts_constant_numeric_float
+set-face global ts_type_definition    ts_type
+set-face global ts_type_qualifier     ts_keyword_storage_modifier
+set-face global ts_storageclass       ts_keyword_storage
+
+# Powerline modeline — installed as an autoload plugin by the powerline-kak
+# package (see dotfiles/guix/dotfiles/packages/powerline-kak.scm).  Autoload
+# picks up all rc/*.kak + themes/*.kak automatically.
+#
+# The `powerline-theme` command lives INSIDE the `powerline` kak-module, so
+# it isn't defined at kakrc-parse time.  `powerline-start` schedules
+# `require-module powerline` on the first BufCreate; the ModuleLoaded hook
+# below runs after that require and can safely invoke powerline-theme.  This
+# is the same idiom plug.kak's `defer` uses.
+hook global ModuleLoaded powerline %{
+    powerline-theme night-owl
+}
+powerline-start
+
+# ------------------------------------------------------------------
+# Extra filetype associations (extend kakoune's built-in detection).
+# kak-tree-sitter uses the buffer's filetype as its language key, so
+# these hooks decide which grammar (from ~/.local/share/kak-tree-sitter/
+# runtime/grammars/) gets applied to a buffer.
+#
+# NOTE on precedence: kakoune runs BufCreate hooks in the order they were
+# registered, and the LAST `set-option filetype` wins.  These hooks live
+# after the built-ins are loaded (autoload runs before user kakrc), so any
+# association below overrides kakoune's default detection.
+# ------------------------------------------------------------------
+
+# --- Shell family ---
+# .envrc / .env / .env.local / .direnvrc — direnv & dotenv are POSIX shell.
+# Kakoune's built-in sh regex covers .sh/.bash/.zsh/bashrc but not envrc.
+hook global BufCreate .*(\.envrc|\.direnvrc|\.env(\..*)?)$ %{
+    set-option buffer filetype sh
+}
+
+# --- Nushell ---
+# Extension.
+hook global BufCreate .*\.nu$ %{
+    set-option buffer filetype nu
+}
+# Shebang — `#!/usr/bin/env nu` or `#!/path/to/nu`.  Runs on BufOpenFile
+# because the buffer content isn't in memory during BufCreate for new-file
+# templates; open-file guarantees the first line is loaded.
+hook global BufOpenFile .* %{ evaluate-commands %sh{
+    first=$(head -n1 "$kak_buffile" 2>/dev/null)
+    case "$first" in
+        '#!'*'/nu'|'#!'*' nu'|'#!'*'/env nu'|'#!'*'/env -S nu'*)
+            echo 'set-option buffer filetype nu' ;;
+    esac
+}}
+
+# --- Terraform / OpenTofu / HCL ---
+# Kakoune's terraform.kak sets filetype=terraform for .tf/.tfvars, but our
+# tree-sitter runtime grammar is named `hcl` and covers both.  Force `hcl`.
+hook global BufCreate .*\.(tf|tfvars|hcl)$ %{
+    set-option buffer filetype hcl
+}
+
+# --- HOCON ---
+# Kakoune has no built-in HOCON detector.
+hook global BufCreate .*\.(conf|hocon)$ %{
+    set-option buffer filetype hocon
+}
+
+# --- JSON with comments (VSCode-style, tsconfig, etc.) ---
+# .jsonc → json (our json grammar tolerates comments).
+hook global BufCreate .*\.jsonc$ %{
+    set-option buffer filetype json
+}
+
+# --- .editorconfig → dedicated grammar (kak defaults to `ini`) ---
+# Overrides share/kak/rc/detection/editorconfig.kak which sets filetype=ini.
+hook global BufCreate .*/?\.editorconfig$ %{
+    set-option buffer filetype editorconfig
+}
+
+# --- Systemd units → ini (we don't have a systemd grammar) ---
+# Kak's built-in systemd.kak sets filetype=ini already for these; kept here
+# as a defensive fallback for hosts that lack that detector.
+hook global BufCreate .*\.(service|timer|socket|target|mount|automount|swap|path|slice|scope)$ %{
+    set-option buffer filetype ini
+}
+
+# ------------------------------------------------------------------
+# editorconfig: language-aware indentation per repo.
+# Kakoune ships `:editorconfig-load` (share/kak/rc/detection/editorconfig.kak)
+# which shells out to the `editorconfig` CLI (from the editorconfig-core-c
+# package, installed via manifest.scm) and applies indentwidth / tabstop /
+# eolformat / finaleol / max_line_length per the closest `.editorconfig`.
+#
+# We call it on every BufOpenFile.  `try` swallows the failure when the CLI
+# is missing (fresh install before `home-reconfigure`) or when no
+# `.editorconfig` is found up the tree.
+# ------------------------------------------------------------------
+hook global BufOpenFile .* %{ try %{ editorconfig-load } }
+
+# ------------------------------------------------------------------
+# Visual: indent guides + line numbers
+# ------------------------------------------------------------------
+
+# Indent guides — native show-whitespaces with only `-indent` visible.
+# Replaces the first space of each indentation level (per `indentwidth`)
+# with `│` (Box Drawings Light Vertical).  Uses face `WhitespaceIndent`.
+# The other flags are set to plain space so regular whitespace stays
+# invisible; without them, show-whitespaces highlights ALL whitespace by
+# default, which is noisier than what we want.
+add-highlighter global/ show-whitespaces -indent '│' -spc ' ' -lf ' ' -nbsp ' ' -tab ' '
+
+# Muted color for the guide so it's a visual hint, not a distraction.
+# `overlay1` in catppuccin_macchiato = comment-adjacent grey.
+set-face global WhitespaceIndent "%opt{overlay1}"
+
+# Line numbers — relative offsets + highlight the cursor line.
+# `LineNumberCursor` face (from catppuccin) marks the current line;
+# other lines use `LineNumbers`.  Not vim-style hybrid true (cursor line
+# shows `0`, not the absolute number) — kakoune has no native flag for
+# that.  This is the sane native default and it composes with the modeline.
+add-highlighter global/ number-lines -relative -hlcursor -separator ' │ '
+
+# <tab>/<backspace> expandtab, per the Kakoune wiki's canonical recipe
+# (github.com/mawww/kakoune/wiki/Indentation-and-Tabulation, method 2).
+#
+# InsertChar \t: convert a just-inserted tab to spaces ONLY when the
+# prefix of the line is whitespace (i.e. we're indenting).  Tabbing mid-
+# line to align a comment/table stays as a literal tab.
+#   h              → back one char (to the tab we just inserted)
+#   <a-h>          → select to line start
+#   <a-k>\A\h+\z   → keep only if the selection is horizontal-whitespace
+#   <a-;>; %opt{indentwidth}@ → reduce+expand tab via `@` to indentwidth spaces
+#
+# InsertDelete ' ': make <backspace> in indentation delete indentwidth
+# spaces atomically (vim's softtabstop equivalent).
+hook global InsertChar \t %{ try %{
+    execute-keys -draft "h<a-h><a-k>\A\h+\z<ret><a-;>;%opt{indentwidth}@"
+}}
+hook global InsertDelete ' ' %{ try %{
+    execute-keys -draft 'h<a-h><a-k>\A\h+\z<ret>i<space><esc><lt>'
+}}
+
+# LSP servers.  kak-lsp expects `lsp_servers` as a BUFFER-scoped option set
+# by a `BufSetOption filetype=X` hook — one server config block per filetype.
+# Setting it globally with multiple servers stacked causes kak-lsp to try
+# starting the first one (regardless of filetype) and stop routing once it
+# fails.  See https://github.com/kakoune-lsp/kakoune-lsp README, "Multiple
+# language servers" section.
+
+# D — serve-d
+hook global BufSetOption filetype=d %{
+    set-option buffer lsp_servers %{
+        [serve-d]
+        root_globs = [".git", "dub.sdl", "dub.json"]
+        settings_section = "d"
+        [serve-d.settings.d]
+    }
+}
+
+# Scala — Metals (with scala-cli BSP or sbt/mill).
+# Root globs: build tools (sbt, mill, maven) + scala-cli's `.bsp/` (from
+# `scala-cli setup-ide .`) + `project.scala` manifest.  Deliberately NOT
+# `.git` — Guix Home's dotfiles service creates a `~/.git` symlink, so any
+# Scala buffer without its own `.git` upstream would match `~/.git` and
+# metals would boot with `/home/mknelo` as root and hang.
+hook global BufSetOption filetype=scala %{
+    set-option buffer lsp_servers %{
+        [metals]
+        root_globs = ["build.sbt", "build.sc", "build.mill", "pom.xml", ".bsp", "project.scala"]
+        settings_section = "metals"
+        [metals.settings.metals]
+    }
 }
 
 set-option global modelinefmt "%opt{lsp_modeline} %opt{modelinefmt}"
+
+# kak-lsp's default `lsp-language-id` hook (in rc/servers.kak) sets
+# `lsp_language_id = filetype` for every filetype except js/ts variants.
+# But if the buffer's filetype was set BEFORE kak-lsp installed its hooks
+# (e.g. a scala buffer that was already open when the kakrc runs, or when
+# `:source ~/.config/kak/kakrc` runs mid-session), the hook never fires
+# and lsp_language_id stays empty.  Without it, kak-lsp cannot route
+# requests to a server and logs "the 'lsp_language_id' option is empty,
+# cannot route request", falling back to `lsp-block-in-buffer`.
+# Ensure it for every filetype we use with LSP:
+hook global BufSetOption filetype=scala %{ set-option buffer lsp_language_id scala }
+
+# --- LSP verbosity for debugging ---
+# `lsp_debug true` makes kak-lsp emit protocol traces + server stderr to the
+# *debug* buffer.  `lsp_snippet_support false` mutes noise from serve-d.
+# Additionally, kak-lsp writes its own logs to a file when KAK_LSP_LOG is
+# set; this gives a persistent record when *debug* rolls off.
+set-option global lsp_debug true
 
 map global user l ':enter-user-mode lsp<ret>' -docstring 'LSP mode'
 
@@ -27,3 +255,31 @@ map global object f '<a-semicolon>lsp-object Function Method<ret>' -docstring 'L
 map global object t '<a-semicolon>lsp-object Class Interface Module Namespace Struct<ret>' -docstring 'LSP class or module'
 map global object d '<a-semicolon>lsp-diagnostic-object error warning<ret>' -docstring 'LSP errors and warnings'
 map global object D '<a-semicolon>lsp-diagnostic-object error<ret>' -docstring 'LSP errors'
+
+define-command -override -params 1.. -shell-completion sh-buffer \
+    -docstring 'Run shell command, show stdout+stderr in scratch *sh-out*' %{
+    # `%sh{}` must be at the outer %{}'s top level to receive $@ from the
+    # -params args.  Nesting %sh{} inside a further %{...} block (as with
+    # `evaluate-commands -save-regs '"' %{ ... }`) drops the positional args.
+    # See share/kak/rc/windowing/zellij.kak `zellij-action` for the canonical
+    # pattern.
+    evaluate-commands %sh{
+        # `eval` re-parses "$@" as a shell line so `&&`, `||`, pipes, and
+        # `$var` expansion all work — running `"$@"` directly treats each arg
+        # as an inert word (breaks `sh-buffer test -f x && echo y`, and
+        # `$kak_session` inside a kak-string arg stays literal).
+        out=$(eval "$@" 2>&1)
+        # Escape single quotes for the kak string literal: ' -> ''
+        escaped=$(printf %s "$out" | sed "s/'/''/g")
+        # `%"_d` : select whole buffer, delete to blackhole register `_`.
+        # Plain `%d` would overwrite register `"` (kak's default yank target)
+        # with the erased content — pisando el output we just placed there
+        # with set-register — so the subsequent `""P` would paste an empty
+        # string.  Blackhole register discards, leaving `"` intact.
+        cat <<EOF
+edit -scratch *sh-out*
+set-register dquote '$escaped'
+execute-keys '%"_d""P'
+EOF
+    }
+}
