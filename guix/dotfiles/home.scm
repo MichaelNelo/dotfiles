@@ -15,6 +15,7 @@
   #:use-module (dotfiles services op)
   #:use-module (dotfiles services op-agent)
   #:use-module (dotfiles services piknik)
+  #:use-module (dotfiles services kak-tree-sitter)
   #:use-module (dotfiles secrets)
   #:use-module (gnu packages rust-apps)   ;zoxide
   #:use-module (gnu packages ssh)         ;openssh (ssh-agent shepherd)
@@ -121,6 +122,18 @@ $env.NIX_SSL_CERT_FILE = \"/etc/ssl/certs/ca-certificates.crt\"
         ;; Guix installs .so files under the home profile, not /usr/lib/dri.
         (plain-file "vaapi-init.nu"
                     "$env.LIBVA_DRIVERS_PATH = $\"($env.HOME)/.guix-home/profile/lib/dri\"
+")
+        ;; KAKOUNE_RUNTIME — kakoune declares this as native-search-path
+        ;; (files: `share/kak`), but Guix Home's setup-environment only
+        ;; propagates a small allowlist of env vars (GUIX_LOCPATH, MANPATH,
+        ;; INFOPATH, XDG_DATA_DIRS, XCURSOR_PATH, GUIX_EXTENSIONS_PATH) and
+        ;; drops the rest.  Without KAKOUNE_RUNTIME set, kakoune resolves
+        ;; `%val{runtime}` to its own install prefix (a store path) and
+        ;; misses share/kak/autoload/ contents from profile packages
+        ;; (powerline-kak, editorconfig detection, etc.).  Force it here so
+        ;; kakoune picks up plugins installed via the home profile.
+        (plain-file "kakoune-init.nu"
+                    "$env.KAKOUNE_RUNTIME = $\"($env.HOME)/.guix-home/profile/share/kak\"
 ")
         ;; SSH agent socket + auto-load of provisioned keys.  Runs on
         ;; every shell start: guaranteed to be idempotent because
@@ -234,17 +247,19 @@ try {
            (source
             "op://Personal/DOTFILES GIT-CRYPT KEY/notesPlain"))
    ;; Same 1P item as eva-personal-ssh above, but landed at the guix
-   ;; offload location: root-owned so guix-daemon (running as root)
-   ;; can read it, mode 0600 because OpenSSH/libssh reject anything
-   ;; wider on a private key.  owner="root:root" makes the nushell
-   ;; provisioner use `sudo tee`/`sudo chmod`/`sudo chown` under the
-   ;; hood.
+   ;; offload location: mode 0600 because OpenSSH/libssh reject anything
+   ;; wider on a private key.  Owner is mknelo:users so `guix offload test`
+   ;; (typically run interactively as mknelo) can read it — root can also
+   ;; read (any file), so guix-daemon offload dispatch still works.
+   ;; owner="mknelo:users" makes the nushell provisioner use `sudo tee`/
+   ;; `sudo chmod`/`sudo chown` (needs sudo because /etc/guix/offload/ is
+   ;; root-writable).
    (secret (name "offload-ssh-key")
            (path "/etc/guix/offload/personal.server.id_rsa")
            (type 'raw)
            (source
             "op://Personal/LOCAL SSH CLIENT KEY/private key?ssh-format=openssh")
-           (owner "root:root"))
+           (owner "mknelo:users"))
    ;; Piknik keyset — same record used by piknik-server's wait-loop
    ;; (see dotfiles/services/piknik.scm).  on-missing='generate = the
    ;; provisioner runs `piknik -genkeys` and uploads to 1P if the item
@@ -293,8 +308,17 @@ if ($hook | path exists) {
 ;; service (see serialize-nushell-aliases) — nushell's plain `alias` only
 ;; supports a single command atom, so multi-arg wrappers need def.
 (define %nushell-aliases
+  ;; Both -reconfigure aliases point at the wsl-client-system tree that the
+  ;; WSL image seeded to $HOME on first login (see %wsl-source-copy-activation
+  ;; in system/wsl.scm).  ~/dotfiles is NOT a real path on a fresh WSL boot —
+  ;; the dotfiles/ submodule is embedded inside ~/wsl-client-system/dotfiles/.
   '(("home-reconfigure" .
-     "guix home reconfigure -L ~/dotfiles/guix ~/dotfiles/guix/dotfiles/home.scm")
+     "guix home reconfigure -L ~/wsl-client-system/dotfiles/guix ~/wsl-client-system/dotfiles/guix/dotfiles/home.scm")
+    ;; --skip-checks: wsl-os supplies dummy file-systems/bootloader; the
+    ;; file-system availability check would fail on our placeholder root fs
+    ;; (needed to satisfy operating-system-bootcfg).  See system/wsl.scm.
+    ("system-reconfigure" .
+     "sudo -E guix system reconfigure --skip-checks -L ~/wsl-client-system -L ~/wsl-client-system/dotfiles/guix ~/wsl-client-system/system/wsl.scm")
     ("explore" .
      "zellij action new-tab --layout ~/.config/zellij/layouts/explore.kdl")
     ("edit" .
@@ -390,27 +414,35 @@ if ($hook | path exists) {
                       (if (getenv "TEST") %dev-packages
                           '())))
     (services
-     (list
-      %channels-service
-      %micro-plugins-service
-      %zellij-plugins-service
-      %dotfiles-service
-      %ssh-service
-      %ssh-agent-shepherd-service
-      %op-agent-service
-      %op-agent-install-service
-      %nushell-service
-      ;; Piknik: dirs first, then server, then provisioning (needs op).
-      %piknik-dirs-service
-      %piknik-server-service
-      ;; Secret provisioning happens at nushell login via provision-
-      ;; all-secrets (see %nushell-login-nu + %secrets), not through
-      ;; home-activation.  Reconfigure stays fast (no op signin
-      ;; prompts), and provisioning doesn't wait for a `guix pull`.
-      ;; op-account-add MUST be last in the services list so it runs FIRST
-      ;; during home activation (Guix runs activation gexps in reverse list
-      ;; order).  Account must be registered before provisioners sign in.
-      (make-op-account-add-service #:package onepassword-cli)))))
+     (append
+      (list
+       %channels-service
+       %micro-plugins-service
+       %zellij-plugins-service
+       %dotfiles-service
+       %ssh-service
+       %ssh-agent-shepherd-service
+       %op-agent-service
+       %op-agent-install-service
+       %nushell-service
+       ;; Piknik: dirs first, then server, then provisioning (needs op).
+       %piknik-dirs-service
+       %piknik-server-service
+       ;; Secret provisioning happens at nushell login via provision-
+       ;; all-secrets (see %nushell-login-nu + %secrets), not through
+       ;; home-activation.  Reconfigure stays fast (no op signin
+       ;; prompts), and provisioning doesn't wait for a `guix pull`.
+       ;; op-account-add MUST be last in the services list so it runs FIRST
+       ;; during home activation (Guix runs activation gexps in reverse list
+       ;; order).  Account must be registered before provisioners sign in.
+       (make-op-account-add-service #:package onepassword-cli))
+      ;; kak-tree-sitter runtime: installs grammar .so's + queries at
+      ;; ~/.local/share/kak-tree-sitter/runtime/, and config.toml at
+      ;; ~/.config/kak-tree-sitter/.  Returns two services (runtime files +
+      ;; config), hence appended into the services list.  The kakrc snippet
+      ;; that boots the daemon per-session lives in
+      ;; dotfiles/.config/kak/kakrc.
+      (kak-tree-sitter-service)))))
 
 ;; Export for direct use
 dotfiles-home-environment
